@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const initialMode =
+    searchParams.get("mode") === "email" ? "email" : "job_posting";
+
   const [jobPosting, setJobPosting] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [mode, setMode] = useState<"job_posting" | "email">("job_posting");
+  const [mode, setMode] = useState<"job_posting" | "email">(initialMode);
   const router = useRouter();
 
   const handleSubmit = async () => {
@@ -36,7 +40,6 @@ export default function Home() {
         return;
       }
 
-      // Save the result temporarily so the Results page can read it
       sessionStorage.setItem("legitcheck_result", JSON.stringify(data));
       router.push("/results");
     } catch (err) {
@@ -131,9 +134,7 @@ export default function Home() {
           className="w-full h-48 p-4 rounded-lg bg-gray-950 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
         />
 
-        {errorMsg && (
-          <p className="text-red-400 text-sm mt-2">{errorMsg}</p>
-        )}
+        {errorMsg && <p className="text-red-400 text-sm mt-2">{errorMsg}</p>}
 
         <div className="flex justify-between items-center mt-4">
           <span className="text-xs text-gray-500 flex items-center gap-1">
@@ -145,7 +146,9 @@ export default function Home() {
             disabled={loading}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
-            {loading ? "Analyzing..." : "Check This " + (mode === "email" ? "Email" : "Posting") + " →"}
+            {loading
+              ? "Analyzing..."
+              : "Check This " + (mode === "email" ? "Email" : "Posting") + " →"}
           </button>
         </div>
       </div>
@@ -176,5 +179,13 @@ export default function Home() {
         </div>
       </footer>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

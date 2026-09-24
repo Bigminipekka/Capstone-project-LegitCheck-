@@ -75,7 +75,34 @@ export default function Results() {
   };
 
   const colors = riskColors[result.riskLevel];
-  const confidence = Math.min(98, 70 + result.matchesFound * 5);
+  const confidence =
+    result.matchesFound === 0
+      ? 100
+      : Math.min(98, 70 + result.matchesFound * 5);
+
+  const weightStyles: Record<
+    string,
+    { border: string; bg: string; text: string; badge: string }
+  > = {
+    High: {
+      border: "border-red-800",
+      bg: "bg-red-950/30",
+      text: "text-red-400",
+      badge: "bg-red-600",
+    },
+    "Medium-High": {
+      border: "border-orange-800",
+      bg: "bg-orange-950/30",
+      text: "text-orange-400",
+      badge: "bg-orange-600",
+    },
+    Medium: {
+      border: "border-yellow-800",
+      bg: "bg-yellow-950/30",
+      text: "text-yellow-400",
+      badge: "bg-yellow-600",
+    },
+  };
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -130,7 +157,11 @@ export default function Results() {
               </span>
             </div>
             <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-400">Heuristics Confidence</span>
+              <span className="text-gray-400">
+                {result.matchesFound === 0
+                  ? "Clean Scan Confidence"
+                  : "Scam Confidence"}
+              </span>
               <span className="font-semibold">{confidence}%</span>
             </div>
           </div>
@@ -144,7 +175,9 @@ export default function Results() {
             </ul>
 
             <button
-              onClick={() => router.push("/")}
+              onClick={() =>
+                router.push(`/?mode=${result.contentType || "job_posting"}`)
+              }
               className="w-full mt-4 py-2 border border-blue-600 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-950 transition-colors"
             >
               Scan Another {result.contentType === "email" ? "Email" : "Job Posting"}
@@ -163,25 +196,35 @@ export default function Results() {
             </p>
           ) : (
             <div className="space-y-3">
-              {result.flaggedResults.map((flag, i) => (
-                <div
-                  key={i}
-                  className="border rounded-lg p-4 border-red-800 bg-red-950/30"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 bg-red-600">
-                      ✕
-                    </span>
-                    <div>
-                      <p className="font-semibold text-red-400">{flag.indicator}</p>
-                      <p className="text-sm text-gray-400 mt-1">{flag.description}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Source: {flag.source} • Weight: {flag.weight}
-                      </p>
+              {result.flaggedResults.map((flag, i) => {
+                const style = weightStyles[flag.weight] || weightStyles.Medium;
+
+                return (
+                  <div
+                    key={i}
+                    className={`border rounded-lg p-4 ${style.border} ${style.bg}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${style.badge}`}
+                      >
+                        ✕
+                      </span>
+                      <div>
+                        <p className={`font-semibold ${style.text}`}>
+                          {flag.indicator}
+                        </p>
+                        <p className="text-sm text-gray-400 mt-1">
+                          {flag.description}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Source: {flag.source} • Weight: {flag.weight}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
