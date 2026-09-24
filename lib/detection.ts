@@ -108,8 +108,8 @@ export function checkRules(text: string): RuleMatch[] {
         const commonMisspellings =
           /(recieve|beleive|occured|seperate|untill|definately|acheive|goverment|reccomend|neccessary)/i;
         const doubleSpaces = (t.match(/  +/g) || []).length;
-        const missingCapitalization =
-          /\. [a-z]/.test(t.slice(0, 500)); // lowercase right after a period
+        // Use original-case text for capitalization check, since 't' here is lowercased
+        const missingCapitalization = /\. [a-z]/.test(text.slice(0, 500));
         return (
           commonMisspellings.test(t) ||
           doubleSpaces > 3 ||

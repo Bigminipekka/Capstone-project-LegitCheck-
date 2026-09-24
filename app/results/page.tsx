@@ -75,10 +75,14 @@ export default function Results() {
   };
 
   const colors = riskColors[result.riskLevel];
+
   const confidence =
-    result.matchesFound === 0
-      ? 100
-      : Math.min(98, 70 + result.matchesFound * 5);
+    result.riskLevel === "Low"
+      ? Math.max(85, 100 - result.totalScore * 5)
+      : Math.min(98, 70 + result.totalScore * 5);
+
+  const confidenceLabel =
+    result.riskLevel === "Low" ? "Clean Scan Confidence" : "Scam Confidence";
 
   const weightStyles: Record<
     string,
@@ -157,11 +161,7 @@ export default function Results() {
               </span>
             </div>
             <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-400">
-                {result.matchesFound === 0
-                  ? "Clean Scan Confidence"
-                  : "Scam Confidence"}
-              </span>
+              <span className="text-gray-400">{confidenceLabel}</span>
               <span className="font-semibold">{confidence}%</span>
             </div>
           </div>
