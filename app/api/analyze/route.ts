@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { checkRules } from "@/lib/detection";
+import { checkEmailRules } from "@/lib/emailDetection";
 
 const weightValues: Record<string, number> = {
   High: 3,
@@ -9,26 +10,31 @@ const weightValues: Record<string, number> = {
 };
 
 export async function POST(req: NextRequest) {
-  const { text } = await req.json();
+  const { text, type } = await req.json();
 
   if (!text || text.trim().length < 20) {
     return NextResponse.json(
-      { error: "Please paste a longer job posting to analyze." },
+      { error: "Please paste a longer message to analyze." },
       { status: 400 }
     );
   }
 
-  // Get all rules from Supabase
-  const { data: rules, error } = await supabase.from("rules").select("*");
+  const contentType = type === "email" ? "email" : "job_posting";
+
+  // Get only the rules matching this content type
+  const { data: rules, error } = await supabase
+    .from("rules")
+    .select("*")
+    .eq("content_type", contentType);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Run keyword detection against the submitted text
-  const matches = checkRules(text);
+  // Run the correct detection logic based on type
+  const matches =
+    contentType === "email" ? checkEmailRules(text) : checkRules(text);
 
-  // Combine matches with their full rule data from Supabase
   const flaggedResults = matches
     .filter((m) => m.matched)
     .map((m) => {
@@ -42,7 +48,6 @@ export async function POST(req: NextRequest) {
       };
     });
 
-  // Calculate a total score based on matched rule weights
   const totalScore = flaggedResults.reduce(
     (sum, r) => sum + (weightValues[r.weight] || 1),
     0
@@ -57,5 +62,6 @@ export async function POST(req: NextRequest) {
     matchesFound: flaggedResults.length,
     totalScore,
     flaggedResults,
+    contentType,
   });
 }

@@ -8,13 +8,14 @@ export default function Home() {
   const [jobPosting, setJobPosting] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [mode, setMode] = useState<"job_posting" | "email">("job_posting");
   const router = useRouter();
 
   const handleSubmit = async () => {
     setErrorMsg("");
 
     if (jobPosting.trim().length < 20) {
-      setErrorMsg("Please paste a longer job posting to analyze.");
+      setErrorMsg("Please paste a longer message to analyze.");
       return;
     }
 
@@ -24,7 +25,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: jobPosting }),
+        body: JSON.stringify({ text: jobPosting, type: mode }),
       });
 
       const data = await res.json();
@@ -47,7 +48,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
-        <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
+      <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             🛡️
@@ -79,17 +80,40 @@ export default function Home() {
           Detect Job Scams Instantly
         </h1>
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-          Paste a job posting below to check if it's likely a scam. Our
-          algorithm analyzes salary claims, request channels, contact
-          details, and grammatical patterns.
+          Paste a job posting or suspicious email below to check if it's
+          likely a scam. Our algorithm analyzes salary claims, request
+          channels, contact details, and grammatical patterns.
         </p>
       </div>
 
       {/* Input Card */}
       <div className="max-w-3xl w-full mx-auto mt-10 bg-gray-900 border border-gray-800 rounded-xl p-6">
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setMode("job_posting")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+              mode === "job_posting"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}
+          >
+            Job Posting
+          </button>
+          <button
+            onClick={() => setMode("email")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+              mode === "email"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}
+          >
+            Email
+          </button>
+        </div>
+
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-300">
-            JOB DESCRIPTION / POSTING TEXT
+            {mode === "email" ? "EMAIL CONTENT" : "JOB DESCRIPTION / POSTING TEXT"}
           </span>
           <span className="text-xs text-gray-500">
             Support for pasted text, HTML, or raw links
@@ -99,7 +123,11 @@ export default function Home() {
         <textarea
           value={jobPosting}
           onChange={(e) => setJobPosting(e.target.value)}
-          placeholder="Paste the job posting here..."
+          placeholder={
+            mode === "email"
+              ? "Paste the email content here..."
+              : "Paste the job posting here..."
+          }
           className="w-full h-48 p-4 rounded-lg bg-gray-950 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
         />
 
@@ -117,7 +145,7 @@ export default function Home() {
             disabled={loading}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
-            {loading ? "Analyzing..." : "Check This Posting →"}
+            {loading ? "Analyzing..." : "Check This " + (mode === "email" ? "Email" : "Posting") + " →"}
           </button>
         </div>
       </div>

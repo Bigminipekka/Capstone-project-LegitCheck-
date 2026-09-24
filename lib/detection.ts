@@ -95,6 +95,47 @@ export function checkRules(text: string): RuleMatch[] {
           t
         ),
     },
+    {
+      indicator: "Asks you to pay to unlock or withdraw earnings already made",
+      test: (t) =>
+        /(pay|fee).{0,30}(unlock|withdraw|release).{0,20}(earnings|funds|payment)/i.test(
+          t
+        ),
+    },
+    {
+      indicator: "Poor spelling and grammar in the posting or messages",
+      test: (t) => {
+        const commonMisspellings =
+          /(recieve|beleive|occured|seperate|untill|definately|acheive|goverment|reccomend|neccessary)/i;
+        const doubleSpaces = (t.match(/  +/g) || []).length;
+        const missingCapitalization =
+          /\. [a-z]/.test(t.slice(0, 500)); // lowercase right after a period
+        return (
+          commonMisspellings.test(t) ||
+          doubleSpaces > 3 ||
+          missingCapitalization
+        );
+      },
+    },
+    {
+      indicator: "Unsolicited contact where you did not apply first",
+      test: (t) =>
+        /(we found your resume|you (have been|were) selected|came across your profile|reaching out to you regarding|noticed your (profile|resume))/i.test(
+          t
+        ),
+    },
+    {
+      indicator:
+        "Vague company description with no contact info, headquarters, or verifiable details",
+      test: (t) => {
+        const hasEmail = /@[\w.-]+\.\w+/i.test(t);
+        const hasWebsite = /(www\.|https?:\/\/)/i.test(t);
+        const hasLegalEntity = /(inc\.?|llc|corp\.?|corporation|ltd\.?)/i.test(
+          t
+        );
+        return !hasEmail && !hasWebsite && !hasLegalEntity;
+      },
+    },
   ];
 
   return checks.map((check) => ({

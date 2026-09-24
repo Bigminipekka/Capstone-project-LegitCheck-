@@ -17,6 +17,7 @@ interface AnalysisResult {
   matchesFound: number;
   totalScore: number;
   flaggedResults: FlaggedResult[];
+  contentType?: string;
 }
 
 export default function Results() {
@@ -79,7 +80,7 @@ export default function Results() {
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
-            <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
+      <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             🛡️
@@ -146,7 +147,7 @@ export default function Results() {
               onClick={() => router.push("/")}
               className="w-full mt-4 py-2 border border-blue-600 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-950 transition-colors"
             >
-              Scan Another Job Posting
+              Scan Another {result.contentType === "email" ? "Email" : "Job Posting"}
             </button>
           </div>
         </div>
