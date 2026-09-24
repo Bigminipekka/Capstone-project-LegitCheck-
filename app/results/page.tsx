@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface FlaggedResult {
   indicator: string;
@@ -78,17 +79,21 @@ export default function Results() {
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
-        <div className="flex items-center gap-2">
+            <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
+        <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             🛡️
           </div>
           <span className="font-bold text-lg">LegitCheck</span>
-        </div>
+        </Link>
 
         <nav className="hidden md:flex gap-6 text-sm text-gray-300">
-          <span className="text-blue-400 font-medium">Scanner</span>
-          <span>Database</span>
+          <Link href="/" className="hover:text-blue-400 transition-colors">
+            Scanner
+          </Link>
+          <Link href="/database" className="hover:text-blue-400 transition-colors">
+            Database
+          </Link>
           <span>Extension</span>
           <span>About API</span>
         </nav>
