@@ -1,42 +1,79 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+interface FlaggedResult {
+  indicator: string;
+  weight: string;
+  description: string;
+  source: string;
+  category: string;
+}
+
+interface AnalysisResult {
+  riskLevel: "Low" | "Medium" | "High";
+  matchesFound: number;
+  totalScore: number;
+  flaggedResults: FlaggedResult[];
+}
+
 export default function Results() {
-  const redFlags = [
-    {
-      status: "flag",
-      title: "Vague job description with no specific duties",
-      description:
-        "Postings that are extremely short, unclear, or rely solely on generic buzzwords like 'fast-paced environment' with zero task lists are highly typical of recruitment traps.",
+  const router = useRouter();
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("legitcheck_result");
+    if (stored) {
+      setResult(JSON.parse(stored));
+    }
+  }, []);
+
+  if (!result) {
+    return (
+      <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center px-4">
+        <p className="text-gray-400 mb-4">
+          No analysis found. Please submit a job posting first.
+        </p>
+        <button
+          onClick={() => router.push("/")}
+          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
+        >
+          Go to Scanner
+        </button>
+      </main>
+    );
+  }
+
+  const riskColors = {
+    High: {
+      border: "border-red-800",
+      bg: "bg-red-950/40",
+      text: "text-red-500",
+      label: "text-red-400",
+      sub: "text-red-300",
+      advice: "We strongly advise against applying or sharing any financial/personal info.",
     },
-    {
-      status: "flag",
-      title: "No company name or verifiable contact info provided",
-      description:
-        "Genuine operations always specify who they are. The absence of a registered business domain, official corporate profile, or representative identity is a major threat indicator.",
+    Medium: {
+      border: "border-yellow-800",
+      bg: "bg-yellow-950/40",
+      text: "text-yellow-500",
+      label: "text-yellow-400",
+      sub: "text-yellow-300",
+      advice: "Proceed with caution and verify the company independently before applying.",
     },
-    {
-      status: "flag",
-      title: "Promises unusually high salary for entry-level tasks",
-      description:
-        "Offering $45-60/hour for basic personal assistance or administrative entry-level duties is used exclusively to entice victims into financial compromise.",
+    Low: {
+      border: "border-green-800",
+      bg: "bg-green-950/40",
+      text: "text-green-500",
+      label: "text-green-400",
+      sub: "text-green-300",
+      advice: "No major red flags detected, but always use good judgment.",
     },
-    {
-      status: "flag",
-      title: "Requires upfront payment or personal financial info",
-      description:
-        "Explicit mentions of purchasing home office gear with immediate wire reimbursement, purchasing courses, or entering bank account setups upfront.",
-    },
-    {
-      status: "safe",
-      title: "Has a verifiable company website",
-      description:
-        "Our web spiders successfully matched the listed keywords to an active, long-standing registered organization with associated physical headquarters.",
-    },
-    {
-      status: "safe",
-      title: "Posted on a reputable job board",
-      description:
-        "This posting metadata aligns with authorized integration signals directly mapped from primary certified employment syndicates.",
-    },
-  ];
+  };
+
+  const colors = riskColors[result.riskLevel];
+  const confidence = Math.min(98, 70 + result.matchesFound * 5);
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -70,24 +107,25 @@ export default function Results() {
             <p className="text-xs text-gray-500 font-semibold">DIAGNOSTIC RESULT</p>
             <h2 className="text-xl font-bold mt-1 mb-4">Analysis Finished</h2>
 
-            <div className="border border-red-800 bg-red-950/40 rounded-lg p-4 text-center">
-              <p className="text-xs text-red-400 font-semibold tracking-wide">
+            <div className={`border ${colors.border} ${colors.bg} rounded-lg p-4 text-center`}>
+              <p className={`text-xs ${colors.label} font-semibold tracking-wide`}>
                 RISK EVALUATION
               </p>
-              <p className="text-3xl font-bold text-red-500 mt-1">High Risk</p>
-              <p className="text-xs text-red-300 mt-2">
-                We strongly advise against applying or sharing any
-                financial/personal info.
+              <p className={`text-3xl font-bold ${colors.text} mt-1`}>
+                {result.riskLevel} Risk
               </p>
+              <p className={`text-xs ${colors.sub} mt-2`}>{colors.advice}</p>
             </div>
 
             <div className="flex justify-between text-sm mt-4">
               <span className="text-gray-400">Matches Found</span>
-              <span className="text-red-400 font-semibold">4 Flagged Elements</span>
+              <span className={`${colors.label} font-semibold`}>
+                {result.matchesFound} Flagged Elements
+              </span>
             </div>
             <div className="flex justify-between text-sm mt-1">
               <span className="text-gray-400">Heuristics Confidence</span>
-              <span className="font-semibold">98%</span>
+              <span className="font-semibold">{confidence}%</span>
             </div>
           </div>
 
@@ -99,7 +137,10 @@ export default function Results() {
               <li>Block the sender if they reach out via SMS or personal WhatsApp.</li>
             </ul>
 
-            <button className="w-full mt-4 py-2 border border-blue-600 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-950 transition-colors">
+            <button
+              onClick={() => router.push("/")}
+              className="w-full mt-4 py-2 border border-blue-600 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-950 transition-colors"
+            >
               Scan Another Job Posting
             </button>
           </div>
@@ -110,40 +151,33 @@ export default function Results() {
           <p className="text-xs text-blue-400 font-semibold">DIAGNOSTIC REPORT</p>
           <h2 className="text-xl font-bold mt-1 mb-4">Detailed Rules Match</h2>
 
-          <div className="space-y-3">
-            {redFlags.map((flag, i) => (
-              <div
-                key={i}
-                className={`border rounded-lg p-4 ${
-                  flag.status === "flag"
-                    ? "border-red-800 bg-red-950/30"
-                    : "border-green-800 bg-green-950/30"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${
-                      flag.status === "flag"
-                        ? "bg-red-600"
-                        : "bg-green-600"
-                    }`}
-                  >
-                    {flag.status === "flag" ? "✕" : "✓"}
-                  </span>
-                  <div>
-                    <p
-                      className={`font-semibold ${
-                        flag.status === "flag" ? "text-red-400" : "text-green-400"
-                      }`}
-                    >
-                      {flag.title}
-                    </p>
-                    <p className="text-sm text-gray-400 mt-1">{flag.description}</p>
+          {result.flaggedResults.length === 0 ? (
+            <p className="text-gray-400 text-sm">
+              No red flags were detected in this posting based on our current rule set.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {result.flaggedResults.map((flag, i) => (
+                <div
+                  key={i}
+                  className="border rounded-lg p-4 border-red-800 bg-red-950/30"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 bg-red-600">
+                      ✕
+                    </span>
+                    <div>
+                      <p className="font-semibold text-red-400">{flag.indicator}</p>
+                      <p className="text-sm text-gray-400 mt-1">{flag.description}</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Source: {flag.source} • Weight: {flag.weight}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

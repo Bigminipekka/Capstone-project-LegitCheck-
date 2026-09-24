@@ -5,11 +5,42 @@ import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [jobPosting, setJobPosting] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const router = useRouter();
 
-  const handleSubmit = () => {
-    // Detection logic will be connected here later
-    router.push("/results");
+  const handleSubmit = async () => {
+    setErrorMsg("");
+
+    if (jobPosting.trim().length < 20) {
+      setErrorMsg("Please paste a longer job posting to analyze.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: jobPosting }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.error || "Something went wrong. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Save the result temporarily so the Results page can read it
+      sessionStorage.setItem("legitcheck_result", JSON.stringify(data));
+      router.push("/results");
+    } catch (err) {
+      setErrorMsg("Something went wrong. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,6 +100,10 @@ export default function Home() {
           className="w-full h-48 p-4 rounded-lg bg-gray-950 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
         />
 
+        {errorMsg && (
+          <p className="text-red-400 text-sm mt-2">{errorMsg}</p>
+        )}
+
         <div className="flex justify-between items-center mt-4">
           <span className="text-xs text-gray-500 flex items-center gap-1">
             🛡️ We do not save your personal job search data.
@@ -76,9 +111,10 @@ export default function Home() {
 
           <button
             onClick={handleSubmit}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors flex items-center gap-2"
+            disabled={loading}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
-            Check This Posting →
+            {loading ? "Analyzing..." : "Check This Posting →"}
           </button>
         </div>
       </div>
