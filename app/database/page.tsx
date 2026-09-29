@@ -11,11 +11,13 @@ interface Rule {
   weight: string;
   description: string;
   category: string;
+  content_type: string;
 }
 
 export default function Database() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<"job_posting" | "email">("job_posting");
 
   useEffect(() => {
     const fetchRules = async () => {
@@ -33,7 +35,9 @@ export default function Database() {
     fetchRules();
   }, []);
 
-  const grouped = rules.reduce((acc: Record<string, Rule[]>, rule) => {
+  const filteredRules = rules.filter((r) => r.content_type === mode);
+
+  const grouped = filteredRules.reduce((acc: Record<string, Rule[]>, rule) => {
     if (!acc[rule.category]) acc[rule.category] = [];
     acc[rule.category].push(rule);
     return acc;
@@ -61,7 +65,9 @@ export default function Database() {
             Scanner
           </Link>
           <span className="text-blue-400 font-medium">Database</span>
-          <span>Extension</span>
+          <Link href="/how-it-works" className="hover:text-blue-400 transition-colors">
+            How It Works
+          </Link>
           <span>About API</span>
         </nav>
 
@@ -82,13 +88,45 @@ export default function Database() {
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
           Every red flag LegitCheck checks for, sourced from the FTC, BBB,
           and FBI IC3, so you know exactly how your results are calculated.
+          Job postings and emails are checked against separate, independent
+          rule sets.
         </p>
+      </div>
+
+      {/* Toggle */}
+      <div className="flex justify-center gap-2 mt-8">
+        <button
+          onClick={() => setMode("job_posting")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+            mode === "job_posting"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-800 text-gray-400 hover:text-white"
+          }`}
+        >
+          Job Posting Rules
+        </button>
+        <button
+          onClick={() => setMode("email")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+            mode === "email"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-800 text-gray-400 hover:text-white"
+          }`}
+        >
+          Email Rules
+        </button>
       </div>
 
       {/* Rules */}
       <div className="max-w-4xl w-full mx-auto mt-10 mb-16 px-4">
         {loading && (
           <p className="text-gray-500 text-center">Loading rule set...</p>
+        )}
+
+        {!loading && filteredRules.length === 0 && (
+          <p className="text-gray-500 text-center">
+            No rules found for this content type.
+          </p>
         )}
 
         {!loading &&
@@ -126,7 +164,7 @@ export default function Database() {
       </div>
 
       {/* Footer */}
-            <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
+      <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
         <span>© 2026 LegitCheck. Rule-based fraud detection.</span>
         <div className="flex gap-4">
           <Link href="/privacy" className="hover:text-gray-300 transition-colors">

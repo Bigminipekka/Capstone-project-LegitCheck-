@@ -9,11 +9,11 @@ export function checkRules(text: string): RuleMatch[] {
   const lower = text.toLowerCase();
 
   const checks: { indicator: string; test: (t: string) => boolean }[] = [
-    {
+        {
       indicator:
         'Requests upfront payment (training, equipment, background check, "processing fee")',
       test: (t) =>
-        /(pay|purchase|cover the cost|fee|reimburse).{0,40}(training|equipment|background check|processing|home office|starter kit)/i.test(
+        /(you (must|will need to|are required to) (pay|purchase|cover)|upfront (fee|payment|cost)|reimbursed (on|after) your first (check|paycheck))/i.test(
           t
         ),
     },
@@ -54,10 +54,10 @@ export function checkRules(text: string): RuleMatch[] {
           t
         ),
     },
-    {
+        {
       indicator: "High pressure language urging an immediate decision or application",
       test: (t) =>
-        /(immediate start|urgent|apply now|limited spots|act fast|start immediately|asap)/i.test(
+        /(immediate start|urgent hire|limited spots|act fast|start immediately|asap|apply within 24 hours|apply today or|only a few spots|hurry|don't wait|act now)/i.test(
           t
         ),
     },
@@ -80,12 +80,15 @@ export function checkRules(text: string): RuleMatch[] {
           t
         ) || /no experience needed.{0,40}(high pay|\$[4-9][0-9])/i.test(t),
     },
-    {
+        {
       indicator: "Generic job title with vague duties",
       test: (t) =>
         /(entry.level|personal assistant|administrative assistant|customer service rep)/i.test(
           t
-        ) && !/responsibilities include|duties include|you will/i.test(t),
+        ) &&
+        !/responsibilities include|duties include|you will|essential duties|essential functions|key responsibilities|job duties|what you'?ll do/i.test(
+          t
+        ),
     },
     {
       indicator:

@@ -164,6 +164,17 @@ export default function Results() {
               <span className="text-gray-400">{confidenceLabel}</span>
               <span className="font-semibold">{confidence}%</span>
             </div>
+
+            {result.riskLevel === "Low" && result.matchesFound > 0 && (
+              <p className="text-xs text-gray-300 mt-3 leading-relaxed">
+                {result.matchesFound === 1
+                  ? "One minor signal was"
+                  : `${result.matchesFound} minor signals were`}{" "}
+                detected, but weren&apos;t strong or numerous enough to raise
+                the overall risk level. Individual weak matches don&apos;t
+                necessarily indicate a scam on their own.
+              </p>
+            )}
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -231,7 +242,7 @@ export default function Results() {
       </div>
 
       {/* Footer */}
-            <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
+      <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
         <span>© 2026 LegitCheck. Rule-based fraud detection.</span>
         <div className="flex gap-4">
           <Link href="/privacy" className="hover:text-gray-300 transition-colors">
