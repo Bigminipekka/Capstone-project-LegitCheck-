@@ -59,12 +59,14 @@ function HomeContent() {
           <span className="font-bold text-lg">LegitCheck</span>
         </Link>
 
-        <nav className="hidden md:flex gap-6 text-sm text-gray-300">
+                <nav className="hidden md:flex gap-6 text-sm text-gray-300">
           <span className="text-blue-400 font-medium">Scanner</span>
           <Link href="/database" className="hover:text-blue-400 transition-colors">
             Database
           </Link>
-          <span>Extension</span>
+          <Link href="/how-it-works" className="hover:text-blue-400 transition-colors">
+            How It Works
+          </Link>
           <span>About API</span>
         </nav>
 
