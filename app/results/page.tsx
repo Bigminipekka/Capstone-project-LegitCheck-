@@ -231,11 +231,15 @@ export default function Results() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-6 px-8 mt-10 flex justify-between text-xs text-gray-500">
-        <span>© 2026 LegitCheck Technology Inc. Real-time NLP threat detection.</span>
+            <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
+        <span>© 2026 LegitCheck. Rule-based fraud detection.</span>
         <div className="flex gap-4">
-          <span>Privacy Policy</span>
-          <span>Terms of Service</span>
+          <Link href="/privacy" className="hover:text-gray-300 transition-colors">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-gray-300 transition-colors">
+            Terms of Service
+          </Link>
           <span>🔒 SSL Encrypted</span>
         </div>
       </footer>

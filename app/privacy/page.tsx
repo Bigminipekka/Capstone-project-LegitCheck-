@@ -1,0 +1,78 @@
+import Link from "next/link";
+
+export default function Privacy() {
+  return (
+    <main className="min-h-screen bg-gray-950 text-white flex flex-col">
+      <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            🛡️
+          </div>
+          <span className="font-bold text-lg">LegitCheck</span>
+        </Link>
+      </header>
+
+      <div className="max-w-2xl w-full mx-auto mt-12 mb-16 px-4">
+        <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
+        <p className="text-gray-500 text-sm mb-8">Last updated: September 2026</p>
+
+        <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              What We Collect
+            </h2>
+            <p>
+              When you submit a job posting or email to LegitCheck, that text
+              is sent to our server to be analyzed against our fraud
+              indicator rule set. We do not store, save, or log the content
+              you submit. Once your analysis is complete and displayed to
+              you, the submitted text is not retained anywhere.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              How Results Are Handled
+            </h2>
+            <p>
+              Your analysis results are temporarily stored in your own
+              browser (using session storage) so you can view them on the
+              Results page. This data stays on your device and is cleared
+              when you close your browser tab or session.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              No Accounts, No Tracking
+            </h2>
+            <p>
+              LegitCheck does not require you to create an account, and we
+              do not use tracking cookies or analytics to monitor individual
+              user behavior.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              Academic Project Disclaimer
+            </h2>
+            <p>
+              LegitCheck is a student capstone project built for educational
+              purposes. It is not a commercial product, and this policy
+              reflects the actual data practices of the project as built,
+              not a legal document reviewed by an attorney.
+            </p>
+          </section>
+        </div>
+
+        <Link
+          href="/"
+          className="inline-block mt-10 text-blue-400 hover:text-blue-300 text-sm"
+        >
+          ← Back to Scanner
+        </Link>
+      </div>
+    </main>
+  );
+}
