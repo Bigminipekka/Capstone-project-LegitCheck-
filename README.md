@@ -3,7 +3,7 @@
 
 LegitCheck is a website that helps students and job seekers determine whether a job posting or email is likely a scam before they apply or respond. Users paste in a job posting or suspicious email, and LegitCheck analyzes it against a research-backed set of fraud indicators, returning a clear risk score along with a breakdown of exactly which red flags were detected and why they matter.
 
-Built as a cybersecurity capstone project, LegitCheck is designed to be transparent about its detection logic — every rule it checks for is sourced from established consumer protection guidance (FTC, BBB, FBI IC3), and users can browse the full rule set on the site's Database page.
+Built as a information science capstone project, LegitCheck is designed to be transparent about its detection logic — every rule it checks for is sourced from established consumer protection guidance (FTC, BBB, FBI IC3), and users can browse the full rule set on the site's Database page.
 
 ## Features
 Job Posting Scanner — paste a job posting and receive a risk score (Low/Medium/High) with a detailed breakdown of matched red flags
