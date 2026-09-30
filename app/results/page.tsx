@@ -165,6 +165,32 @@ export default function Results() {
               <p className={`text-xs ${colors.sub} mt-2`}>{colors.advice}</p>
             </div>
 
+            {result.aiAnalysis &&
+              result.aiAnalysis.concern_level &&
+              result.aiAnalysis.concern_level !== "Unknown" &&
+              (() => {
+                const riskRank: Record<string, number> = {
+                  Low: 0,
+                  Medium: 1,
+                  High: 2,
+                };
+                const ruleRank = riskRank[result.riskLevel];
+                const aiRank = riskRank[result.aiAnalysis.concern_level] ?? 0;
+
+                return aiRank > ruleRank ? (
+                  <div className="mt-3 border border-purple-800 bg-purple-950/30 rounded-lg p-3">
+                    <p className="text-xs text-purple-300 leading-relaxed">
+                      ⚠️ Our rule-based scan found this{" "}
+                      <strong>{result.riskLevel} Risk</strong>, but our AI
+                      review flagged additional concerns (
+                      <strong>{result.aiAnalysis.concern_level}</strong>) —
+                      please read the full AI Analysis below before
+                      proceeding.
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+
             <div className="flex justify-between text-sm mt-4">
               <span className="text-gray-400">Matches Found</span>
               <span className={`${colors.label} font-semibold`}>
