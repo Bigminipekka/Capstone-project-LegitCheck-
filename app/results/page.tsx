@@ -212,6 +212,13 @@ export default function Results() {
                 necessarily indicate a scam on their own.
               </p>
             )}
+
+            <p className="text-xs text-gray-300 mt-4 pt-3 border-t border-gray-800 leading-relaxed">
+              LegitCheck combines rule-based and AI analysis to catch as much
+              as possible, but no detection system is perfect. A clean
+              result from both systems reduces risk it does not guarantee
+              legitimacy. Always use independent judgment.
+            </p>
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
