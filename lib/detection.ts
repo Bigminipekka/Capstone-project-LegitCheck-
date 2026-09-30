@@ -80,21 +80,21 @@ export function checkRules(text: string): RuleMatch[] {
           t
         ) || /no experience needed.{0,40}(high pay|\$[4-9][0-9])/i.test(t),
     },
-        {
+            {
       indicator: "Generic job title with vague duties",
       test: (t) =>
-        /(entry.level|personal assistant|administrative assistant|customer service rep)/i.test(
+        /(personal assistant|administrative assistant|customer service rep)/i.test(
           t
         ) &&
-        !/responsibilities include|duties include|you will|essential duties|essential functions|key responsibilities|job duties|what you'?ll do/i.test(
+        !/responsibilities include|duties include|you will|essential duties|essential functions|key responsibilities|job duties|what you'?ll do|the role|as a cook|requirements/i.test(
           t
         ),
     },
-    {
+        {
       indicator:
         "No interview required or on the spot offer with no formal process",
       test: (t) =>
-        /(no interview|hired immediately|start right away|no experience required)/i.test(
+        /(no interview required|no interview necessary|hired on the spot|offer.{0,20}immediately.{0,20}no interview|start right away.{0,20}no interview)/i.test(
           t
         ),
     },
