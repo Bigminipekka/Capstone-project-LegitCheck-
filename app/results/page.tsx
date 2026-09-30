@@ -12,12 +12,19 @@ interface FlaggedResult {
   category: string;
 }
 
+interface AIAnalysis {
+  concern_level: string;
+  summary: string;
+  observations: string[];
+}
+
 interface AnalysisResult {
   riskLevel: "Low" | "Medium" | "High";
   matchesFound: number;
   totalScore: number;
   flaggedResults: FlaggedResult[];
   contentType?: string;
+  aiAnalysis?: AIAnalysis | null;
 }
 
 export default function Results() {
@@ -27,7 +34,9 @@ export default function Results() {
   useEffect(() => {
     const stored = sessionStorage.getItem("legitcheck_result");
     if (stored) {
-      setResult(JSON.parse(stored));
+      const parsed = JSON.parse(stored);
+      console.log("Full result from storage:", parsed);
+      setResult(parsed);
     }
   }, []);
 
@@ -126,7 +135,9 @@ export default function Results() {
           <Link href="/database" className="hover:text-blue-400 transition-colors">
             Database
           </Link>
-          <span>Extension</span>
+          <Link href="/how-it-works" className="hover:text-blue-400 transition-colors">
+            How It Works
+          </Link>
           <span>About API</span>
         </nav>
 
@@ -197,45 +208,88 @@ export default function Results() {
         </div>
 
         {/* Right column */}
-        <div className="md:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <p className="text-xs text-blue-400 font-semibold">DIAGNOSTIC REPORT</p>
-          <h2 className="text-xl font-bold mt-1 mb-4">Detailed Rules Match</h2>
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <p className="text-xs text-blue-400 font-semibold">DIAGNOSTIC REPORT</p>
+            <h2 className="text-xl font-bold mt-1 mb-4">Detailed Rules Match</h2>
 
-          {result.flaggedResults.length === 0 ? (
-            <p className="text-gray-400 text-sm">
-              No red flags were detected in this posting based on our current rule set.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {result.flaggedResults.map((flag, i) => {
-                const style = weightStyles[flag.weight] || weightStyles.Medium;
+            {result.flaggedResults.length === 0 ? (
+              <p className="text-gray-400 text-sm">
+                No red flags were detected in this posting based on our current rule set.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {result.flaggedResults.map((flag, i) => {
+                  const style = weightStyles[flag.weight] || weightStyles.Medium;
 
-                return (
-                  <div
-                    key={i}
-                    className={`border rounded-lg p-4 ${style.border} ${style.bg}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${style.badge}`}
-                      >
-                        ✕
-                      </span>
-                      <div>
-                        <p className={`font-semibold ${style.text}`}>
-                          {flag.indicator}
-                        </p>
-                        <p className="text-sm text-gray-400 mt-1">
-                          {flag.description}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          Source: {flag.source} • Weight: {flag.weight}
-                        </p>
+                  return (
+                    <div
+                      key={i}
+                      className={`border rounded-lg p-4 ${style.border} ${style.bg}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${style.badge}`}
+                        >
+                          ✕
+                        </span>
+                        <div>
+                          <p className={`font-semibold ${style.text}`}>
+                            {flag.indicator}
+                          </p>
+                          <p className="text-sm text-gray-400 mt-1">
+                            {flag.description}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Source: {flag.source} • Weight: {flag.weight}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {result.aiAnalysis && (
+            <div className="bg-gray-900 border border-purple-900 rounded-xl p-6">
+              <p className="text-xs text-purple-400 font-semibold">AI ANALYSIS</p>
+              <h2 className="text-xl font-bold mt-1 mb-1">
+                Language & Intent Review
+              </h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Beyond keyword matching — an AI review for subtle manipulation
+                tactics
+              </p>
+
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm text-gray-400">Concern Level:</span>
+                <span
+                  className={`text-sm font-semibold ${
+                    result.aiAnalysis.concern_level === "High"
+                      ? "text-red-400"
+                      : result.aiAnalysis.concern_level === "Medium"
+                      ? "text-yellow-400"
+                      : "text-green-400"
+                  }`}
+                >
+                  {result.aiAnalysis.concern_level}
+                </span>
+              </div>
+
+              <p className="text-sm text-gray-300 mb-4">
+                {result.aiAnalysis.summary}
+              </p>
+
+              {result.aiAnalysis.observations &&
+                result.aiAnalysis.observations.length > 0 && (
+                  <ul className="text-sm text-gray-400 space-y-1.5 list-disc list-inside">
+                    {result.aiAnalysis.observations.map((obs, i) => (
+                      <li key={i}>{obs}</li>
+                    ))}
+                  </ul>
+                )}
             </div>
           )}
         </div>

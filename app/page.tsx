@@ -26,21 +26,37 @@ function HomeContent() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: jobPosting, type: mode }),
-      });
+      // Run the rule-based engine and the AI layer at the same time
+      const [ruleRes, aiRes] = await Promise.all([
+        fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: jobPosting, type: mode }),
+        }),
+        fetch("/api/ai-analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: jobPosting, type: mode }),
+        }),
+      ]);
 
-      const data = await res.json();
+      const ruleData = await ruleRes.json();
 
-      if (!res.ok) {
-        setErrorMsg(data.error || "Something went wrong. Please try again.");
+      if (!ruleRes.ok) {
+        setErrorMsg(ruleData.error || "Something went wrong. Please try again.");
         setLoading(false);
         return;
       }
 
-      sessionStorage.setItem("legitcheck_result", JSON.stringify(data));
+      // AI layer is a bonus — if it fails, we still show the core results
+      let aiData = null;
+      if (aiRes.ok) {
+        aiData = await aiRes.json();
+      }
+
+      const combined = { ...ruleData, aiAnalysis: aiData };
+
+      sessionStorage.setItem("legitcheck_result", JSON.stringify(combined));
       router.push("/results");
     } catch (err) {
       setErrorMsg("Something went wrong. Please try again.");
@@ -59,7 +75,7 @@ function HomeContent() {
           <span className="font-bold text-lg">LegitCheck</span>
         </Link>
 
-                <nav className="hidden md:flex gap-6 text-sm text-gray-300">
+        <nav className="hidden md:flex gap-6 text-sm text-gray-300">
           <span className="text-blue-400 font-medium">Scanner</span>
           <Link href="/database" className="hover:text-blue-400 transition-colors">
             Database
@@ -148,9 +164,32 @@ function HomeContent() {
             disabled={loading}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
-            {loading
-              ? "Analyzing..."
-              : "Check This " + (mode === "email" ? "Email" : "Posting") + " →"}
+            {loading ? (
+              <>
+                <svg
+                  className="animate-spin h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              `Check This ${mode === "email" ? "Email" : "Posting"} →`
+            )}
           </button>
         </div>
       </div>
@@ -172,7 +211,7 @@ function HomeContent() {
       </div>
 
       {/* Footer */}
-            <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
+      <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
         <span>© 2026 LegitCheck. Rule-based fraud detection.</span>
         <div className="flex gap-4">
           <Link href="/privacy" className="hover:text-gray-300 transition-colors">
