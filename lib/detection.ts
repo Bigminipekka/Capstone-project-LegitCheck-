@@ -9,11 +9,11 @@ export function checkRules(text: string): RuleMatch[] {
   const lower = text.toLowerCase();
 
   const checks: { indicator: string; test: (t: string) => boolean }[] = [
-        {
+            {
       indicator:
         'Requests upfront payment (training, equipment, background check, "processing fee")',
       test: (t) =>
-        /(you (must|will need to|are required to) (pay|purchase|cover)|upfront (fee|payment|cost)|reimbursed (on|after) your first (check|paycheck))/i.test(
+        /(you (must|will need to|are required to) (pay|purchase|cover)|upfront (fee|payment|cost|deposit)|refundable.{0,15}deposit|(?<!direct )deposit (is|are) required|reimbursed (on|after) your first (check|paycheck))/i.test(
           t
         ),
     },
