@@ -72,6 +72,9 @@ export default function Results() {
   if (aiLevel && rank[aiLevel] > rank[ruleLevel]) drivenBy = "ai";
   else if (aiLevel && rank[aiLevel] === rank[ruleLevel]) drivenBy = "both";
 
+  // The layer with the higher rating is shown first. Ties keep rules on top.
+  const aiFirst = drivenBy === "ai";
+
   const drivenByText =
     drivenBy === "ai"
       ? "Set by the AI review, which rated this higher than the rule-based engine."
@@ -143,7 +146,7 @@ export default function Results() {
     ? "Report the email as phishing to your email provider, then delete it."
     : "Report this listing on the site where you found it.";
 
-    const stopAction = isEmail
+  const stopAction = isEmail
     ? "Do not reply, click any links, or open attachments."
     : "Do not apply, reply, or share personal information with this poster.";
 
@@ -185,6 +188,90 @@ export default function Results() {
       badge: "bg-yellow-600",
     },
   };
+
+  // ---- The two result cards, built separately so their order can change ----
+  const rulesCard = (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <p className="text-xs text-blue-400 font-semibold">DIAGNOSTIC REPORT</p>
+      <h2 className="text-xl font-bold mt-1">Detailed Rules Match</h2>
+      <p className="text-xs text-gray-400 mb-4">
+        Rule-based rating:{" "}
+        <span className={`font-semibold ${levelText[ruleLevel]}`}>
+          {ruleLevel}
+        </span>
+      </p>
+
+      {result.flaggedResults.length === 0 ? (
+        <p className="text-gray-400 text-sm">
+          No red flags were detected in this posting based on our current rule set.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {result.flaggedResults.map((flag, i) => {
+            const style = weightStyles[flag.weight] || weightStyles.Medium;
+
+            return (
+              <div
+                key={i}
+                className={`border rounded-lg p-4 ${style.border} ${style.bg}`}
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${style.badge}`}
+                  >
+                    ✕
+                  </span>
+                  <div>
+                    <p className={`font-semibold ${style.text}`}>
+                      {flag.indicator}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {flag.description}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Source: {flag.source} • Weight: {flag.weight}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const aiCard = result.aiAnalysis ? (
+    <div className="bg-gray-900 border border-purple-900 rounded-xl p-6">
+      <p className="text-xs text-purple-400 font-semibold">AI ANALYSIS</p>
+      <h2 className="text-xl font-bold mt-1 mb-1">Language & Intent Review</h2>
+      <p className="text-xs text-gray-500 mb-4">
+        Beyond keyword matching — an AI review for subtle manipulation tactics
+      </p>
+
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-sm text-gray-400">Concern Level:</span>
+        <span
+          className={`text-sm font-semibold ${
+            levelText[result.aiAnalysis.concern_level] || "text-gray-400"
+          }`}
+        >
+          {result.aiAnalysis.concern_level}
+        </span>
+      </div>
+
+      <p className="text-sm text-gray-300 mb-4">{result.aiAnalysis.summary}</p>
+
+      {result.aiAnalysis.observations &&
+        result.aiAnalysis.observations.length > 0 && (
+          <ul className="text-sm text-gray-400 space-y-1.5 list-disc list-inside">
+            {result.aiAnalysis.observations.map((obs, i) => (
+              <li key={i}>{obs}</li>
+            ))}
+          </ul>
+        )}
+    </div>
+  ) : null;
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -327,93 +414,10 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Right column */}
+        {/* Right column: the higher-rated layer goes first */}
         <div className="md:col-span-2 space-y-6">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-            <p className="text-xs text-blue-400 font-semibold">DIAGNOSTIC REPORT</p>
-            <h2 className="text-xl font-bold mt-1">Detailed Rules Match</h2>
-            <p className="text-xs text-gray-400 mb-4">
-              Rule-based rating:{" "}
-              <span className={`font-semibold ${levelText[ruleLevel]}`}>
-                {ruleLevel}
-              </span>
-            </p>
-
-            {result.flaggedResults.length === 0 ? (
-              <p className="text-gray-400 text-sm">
-                No red flags were detected in this posting based on our current rule set.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {result.flaggedResults.map((flag, i) => {
-                  const style = weightStyles[flag.weight] || weightStyles.Medium;
-
-                  return (
-                    <div
-                      key={i}
-                      className={`border rounded-lg p-4 ${style.border} ${style.bg}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 ${style.badge}`}
-                        >
-                          ✕
-                        </span>
-                        <div>
-                          <p className={`font-semibold ${style.text}`}>
-                            {flag.indicator}
-                          </p>
-                          <p className="text-sm text-gray-400 mt-1">
-                            {flag.description}
-                          </p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Source: {flag.source} • Weight: {flag.weight}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {result.aiAnalysis && (
-            <div className="bg-gray-900 border border-purple-900 rounded-xl p-6">
-              <p className="text-xs text-purple-400 font-semibold">AI ANALYSIS</p>
-              <h2 className="text-xl font-bold mt-1 mb-1">
-                Language & Intent Review
-              </h2>
-              <p className="text-xs text-gray-500 mb-4">
-                Beyond keyword matching — an AI review for subtle manipulation
-                tactics
-              </p>
-
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-gray-400">Concern Level:</span>
-                <span
-                  className={`text-sm font-semibold ${
-                    levelText[result.aiAnalysis.concern_level] || "text-gray-400"
-                  }`}
-                >
-                  {result.aiAnalysis.concern_level}
-                </span>
-              </div>
-
-              <p className="text-sm text-gray-300 mb-4">
-                {result.aiAnalysis.summary}
-              </p>
-
-              {result.aiAnalysis.observations &&
-                result.aiAnalysis.observations.length > 0 && (
-                  <ul className="text-sm text-gray-400 space-y-1.5 list-disc list-inside">
-                    {result.aiAnalysis.observations.map((obs, i) => (
-                      <li key={i}>{obs}</li>
-                    ))}
-                  </ul>
-                )}
-            </div>
-          )}
+          {aiFirst ? aiCard : rulesCard}
+          {aiFirst ? rulesCard : aiCard}
         </div>
       </div>
 
