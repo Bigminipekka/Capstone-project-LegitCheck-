@@ -98,7 +98,7 @@ function HomeContent() {
           ANTI-SCAM INTELLIGENCE
         </span>
         <h1 className="text-4xl md:text-5xl font-bold mt-3">
-          Detect Job Scams Instantly
+          Detect Job Scams
         </h1>
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
           Paste a job posting or suspicious email below to check if it's

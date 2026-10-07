@@ -29,14 +29,12 @@ interface AnalysisResult {
 
 export default function Results() {
   const router = useRouter();
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [result, setResult] = useState(null as AnalysisResult | null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("legitcheck_result");
     if (stored) {
-      const parsed = JSON.parse(stored);
-      console.log("Full result from storage:", parsed);
-      setResult(parsed);
+      setResult(JSON.parse(stored));
     }
   }, []);
 
@@ -55,6 +53,32 @@ export default function Results() {
       </main>
     );
   }
+
+  // ---- Combine the two layers: the higher rating becomes the headline ----
+  const rank: { [key: string]: number } = { Low: 0, Medium: 1, High: 2 };
+  const levels = ["Low", "Medium", "High"] as const;
+
+  const ruleLevel = result.riskLevel;
+  const aiLevel =
+    result.aiAnalysis && rank[result.aiAnalysis.concern_level] !== undefined
+      ? result.aiAnalysis.concern_level
+      : null;
+
+  const overallRank = Math.max(rank[ruleLevel], aiLevel ? rank[aiLevel] : 0);
+  const overallLevel = levels[overallRank];
+
+  let drivenBy = "rules";
+  if (aiLevel && rank[aiLevel] > rank[ruleLevel]) drivenBy = "ai";
+  else if (aiLevel && rank[aiLevel] === rank[ruleLevel]) drivenBy = "both";
+
+  const drivenByText =
+    drivenBy === "ai"
+      ? "Set by the AI review, which rated this higher than the rule-based engine."
+      : drivenBy === "both"
+      ? "Both layers agree on this rating."
+      : aiLevel
+      ? "Set by the rule-based engine, which rated this at least as high as the AI review."
+      : "Set by the rule-based engine. The AI review was unavailable for this scan.";
 
   const riskColors = {
     High: {
@@ -83,20 +107,27 @@ export default function Results() {
     },
   };
 
-  const colors = riskColors[result.riskLevel];
+  const colors = riskColors[overallLevel];
 
+  const levelText: { [key: string]: string } = {
+    High: "text-red-400",
+    Medium: "text-yellow-400",
+    Low: "text-green-400",
+  };
+
+  // The confidence number comes from the rule-based score, so it is only
+  // shown when the rule-based engine agrees with the overall rating.
+  const showConfidence = drivenBy !== "ai";
   const confidence =
-    result.riskLevel === "Low"
+    ruleLevel === "Low"
       ? Math.max(85, 100 - result.totalScore * 5)
       : Math.min(98, 70 + result.totalScore * 5);
-
   const confidenceLabel =
-    result.riskLevel === "Low" ? "Clean Scan Confidence" : "Scam Confidence";
+    overallLevel === "Low" ? "Clean Scan Confidence" : "Scam Confidence";
 
-  const weightStyles: Record<
-    string,
-    { border: string; bg: string; text: string; badge: string }
-  > = {
+  const weightStyles: {
+    [key: string]: { border: string; bg: string; text: string; badge: string };
+  } = {
     High: {
       border: "border-red-800",
       bg: "bg-red-950/30",
@@ -157,52 +188,45 @@ export default function Results() {
 
             <div className={`border ${colors.border} ${colors.bg} rounded-lg p-4 text-center`}>
               <p className={`text-xs ${colors.label} font-semibold tracking-wide`}>
-                RISK EVALUATION
+                OVERALL RISK EVALUATION
               </p>
               <p className={`text-3xl font-bold ${colors.text} mt-1`}>
-                {result.riskLevel} Risk
+                {overallLevel} Risk
               </p>
               <p className={`text-xs ${colors.sub} mt-2`}>{colors.advice}</p>
             </div>
 
-            {result.aiAnalysis &&
-              result.aiAnalysis.concern_level &&
-              result.aiAnalysis.concern_level !== "Unknown" &&
-              (() => {
-                const riskRank: Record<string, number> = {
-                  Low: 0,
-                  Medium: 1,
-                  High: 2,
-                };
-                const ruleRank = riskRank[result.riskLevel];
-                const aiRank = riskRank[result.aiAnalysis.concern_level] ?? 0;
+            <p className="text-xs text-gray-300 mt-3 leading-relaxed">
+              {drivenByText}
+            </p>
 
-                return aiRank > ruleRank ? (
-                  <div className="mt-3 border border-purple-800 bg-purple-950/30 rounded-lg p-3">
-                    <p className="text-xs text-purple-300 leading-relaxed">
-                      ⚠️ Our rule-based scan found this{" "}
-                      <strong>{result.riskLevel} Risk</strong>, but our AI
-                      review flagged additional concerns (
-                      <strong>{result.aiAnalysis.concern_level}</strong>) —
-                      please read the full AI Analysis below before
-                      proceeding.
-                    </p>
-                  </div>
-                ) : null;
-              })()}
-
-            <div className="flex justify-between text-sm mt-4">
-              <span className="text-gray-400">Matches Found</span>
-              <span className={`${colors.label} font-semibold`}>
-                {result.matchesFound} Flagged Elements
-              </span>
-            </div>
-            <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-400">{confidenceLabel}</span>
-              <span className="font-semibold">{confidence}%</span>
+            <div className="mt-4 pt-3 border-t border-gray-800 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Rule-based engine</span>
+                <span className={`font-semibold ${levelText[ruleLevel]}`}>
+                  {ruleLevel} ({result.matchesFound}{" "}
+                  {result.matchesFound === 1 ? "flag" : "flags"})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">AI review</span>
+                <span
+                  className={`font-semibold ${
+                    aiLevel ? levelText[aiLevel] : "text-gray-500"
+                  }`}
+                >
+                  {aiLevel ? aiLevel : "Unavailable"}
+                </span>
+              </div>
+              {showConfidence && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">{confidenceLabel}</span>
+                  <span className="font-semibold">{confidence}%</span>
+                </div>
+              )}
             </div>
 
-            {result.riskLevel === "Low" && result.matchesFound > 0 && (
+            {overallLevel === "Low" && result.matchesFound > 0 && (
               <p className="text-xs text-gray-300 mt-3 leading-relaxed">
                 {result.matchesFound === 1
                   ? "One minor signal was"
@@ -244,7 +268,13 @@ export default function Results() {
         <div className="md:col-span-2 space-y-6">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <p className="text-xs text-blue-400 font-semibold">DIAGNOSTIC REPORT</p>
-            <h2 className="text-xl font-bold mt-1 mb-4">Detailed Rules Match</h2>
+            <h2 className="text-xl font-bold mt-1">Detailed Rules Match</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Rule-based rating:{" "}
+              <span className={`font-semibold ${levelText[ruleLevel]}`}>
+                {ruleLevel}
+              </span>
+            </p>
 
             {result.flaggedResults.length === 0 ? (
               <p className="text-gray-400 text-sm">
@@ -300,11 +330,7 @@ export default function Results() {
                 <span className="text-sm text-gray-400">Concern Level:</span>
                 <span
                   className={`text-sm font-semibold ${
-                    result.aiAnalysis.concern_level === "High"
-                      ? "text-red-400"
-                      : result.aiAnalysis.concern_level === "Medium"
-                      ? "text-yellow-400"
-                      : "text-green-400"
+                    levelText[result.aiAnalysis.concern_level] || "text-gray-400"
                   }`}
                 >
                   {result.aiAnalysis.concern_level}
@@ -329,8 +355,8 @@ export default function Results() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
-        <span>© 2026 LegitCheck. Rule-based fraud detection.</span>
+      <footer className="border-t border-gray-800 py-6 px-8 mt-10 flex justify-between text-xs text-gray-500">
+        <span>© 2026 LegitCheck. Rule-based and AI-assisted fraud detection.</span>
         <div className="flex gap-4">
           <Link href="/privacy" className="hover:text-gray-300 transition-colors">
             Privacy Policy
