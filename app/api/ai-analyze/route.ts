@@ -43,7 +43,7 @@ Respond in this exact JSON format only, with no other text:
   "recommended_actions": ["short action 1", "short action 2", "up to 3 total"]
 }
 
-For recommended_actions: give 2-3 steps the reader should take that are specific to the concerns you found in this ${contentLabel}. Each step must be one clear, single-action sentence. Do not repeat generic advice such as not sharing your SSN, reporting to the FTC, or reporting the ${contentLabel} to the job board or email provider, because that is covered separately. If your concern level is High, do not suggest proceeding after research; every step should protect the reader. When suggesting verifying a company, point to the state business registry (Secretary of State) or the Better Business Bureau, not the SEC. If your concern level is Low, return an empty array.
+For recommended_actions: give 2-3 steps the reader should take that are specific to the concerns you found in this ${contentLabel}. Each step must be one clear, single-action sentence. Do not repeat generic advice such as not sharing your SSN, reporting to the FTC, or reporting the ${contentLabel} to the job board or email provider, because that is covered separately. If your concern level is High, do not suggest proceeding after research; every step should protect the reader. When suggesting verifying a company, point to the state business registry (Secretary of State) or the Better Business Bureau, not the SEC. Do not tell the reader simply not to apply or reply, and do not mention reporting to the job board; both are covered separately. If a government agency is the right place to report this type of scam, name the agency. If your concern level is Low, return an empty array.
 
 Here is the ${contentLabel} to analyze:
 
