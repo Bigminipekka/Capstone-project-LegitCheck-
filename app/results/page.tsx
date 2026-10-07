@@ -143,8 +143,16 @@ export default function Results() {
     ? "Report the email as phishing to your email provider, then delete it."
     : "Report this listing on the site where you found it.";
 
+    const stopAction = isEmail
+    ? "Do not reply, click any links, or open attachments."
+    : "Do not apply, reply, or share personal information with this poster.";
+
   const standardActions =
-    overallLevel === "Low" ? baselineActions : [reportAction, ...baselineActions];
+    overallLevel === "Low"
+      ? baselineActions
+      : overallLevel === "High"
+      ? [stopAction, reportAction, ...baselineActions]
+      : [reportAction, ...baselineActions];
 
   // AI actions are only shown when the AI itself raised a concern
   const aiActions =
