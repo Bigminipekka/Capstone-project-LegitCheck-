@@ -5,6 +5,15 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Keep only real, non-empty strings and cap how many we return
+function cleanList(value: unknown, max: number): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => typeof item === "string" && item.trim().length > 0)
+    .map((item) => String(item).trim())
+    .slice(0, max);
+}
+
 export async function POST(req: NextRequest) {
   const { text, type } = await req.json();
 
@@ -20,18 +29,21 @@ export async function POST(req: NextRequest) {
   try {
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 400,
+      max_tokens: 700,
       messages: [
         {
           role: "user",
-          content: `You are a fraud detection assistant. Analyze the following ${contentLabel} for subtle manipulation tactics, psychological pressure, vague or evasive language, or other signs that suggest it could be a scam — even if it doesn't contain obvious red-flag keywords.
+          content: `You are a fraud detection assistant. Analyze the following ${contentLabel} for subtle manipulation tactics, psychological pressure, vague or evasive language, or other signs that suggest it could be a scam, even if it doesn't contain obvious red-flag keywords.
 
 Respond in this exact JSON format only, with no other text:
 {
   "concern_level": "Low" | "Medium" | "High",
   "summary": "A 1-2 sentence plain-language summary of your assessment",
-  "observations": ["short observation 1", "short observation 2", "up to 4 total"]
+  "observations": ["short observation 1", "short observation 2", "up to 4 total"],
+  "recommended_actions": ["short action 1", "short action 2", "up to 3 total"]
 }
+
+For recommended_actions: give 2-3 short, concrete steps the reader should take that are specific to the concerns you found in this ${contentLabel}. Do not repeat generic advice like "don't share your SSN" or "report to the FTC". If your concern level is Low, return an empty array.
 
 Here is the ${contentLabel} to analyze:
 
@@ -40,28 +52,46 @@ ${text}`,
       ],
     });
 
-        const responseText =
+    const responseText =
       message.content[0].type === "text" ? message.content[0].text : "";
 
-    console.log("Raw AI response:", responseText);
-
-    // Try to parse the AI's JSON response, stripping any markdown code fences
-    // or extra text the model might have added around the JSON
-    let parsed;
+    // The model sometimes wraps its JSON in markdown fences, so pull out the {...} block
+    let parsed = {} as {
+      concern_level?: string;
+      summary?: string;
+      observations?: unknown;
+      recommended_actions?: unknown;
+    };
+    let parsedOk = false;
     try {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      parsed = jsonMatch
-        ? JSON.parse(jsonMatch[0])
-        : JSON.parse(responseText);
+      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+      parsedOk = true;
     } catch {
-      parsed = {
+      parsedOk = false;
+    }
+
+    if (!parsedOk) {
+      return NextResponse.json({
         concern_level: "Unknown",
         summary: "AI analysis completed but response could not be parsed.",
         observations: [],
-      };
+        recommended_actions: [],
+      });
     }
 
-    return NextResponse.json(parsed);
+    const validLevels = ["Low", "Medium", "High"];
+    const concern =
+      parsed.concern_level && validLevels.includes(parsed.concern_level)
+        ? parsed.concern_level
+        : "Unknown";
+
+    return NextResponse.json({
+      concern_level: concern,
+      summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      observations: cleanList(parsed.observations, 4),
+      recommended_actions: cleanList(parsed.recommended_actions, 3),
+    });
   } catch (error) {
     console.error("AI analysis error:", error);
     return NextResponse.json(

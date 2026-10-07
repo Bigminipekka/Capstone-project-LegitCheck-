@@ -16,6 +16,7 @@ interface AIAnalysis {
   concern_level: string;
   summary: string;
   observations: string[];
+  recommended_actions?: string[];
 }
 
 interface AnalysisResult {
@@ -124,6 +125,35 @@ export default function Results() {
       : Math.min(98, 70 + result.totalScore * 5);
   const confidenceLabel =
     overallLevel === "Low" ? "Clean Scan Confidence" : "Scam Confidence";
+
+  // ---- Recommended actions: fixed baseline + AI-suggested specifics ----
+  const isEmail = result.contentType === "email";
+
+  const baselineActions = isEmail
+    ? [
+        "Never click links or share passwords, SSNs, or card numbers from an unexpected email.",
+        "If you already shared information or paid, report it at reportfraud.ftc.gov.",
+      ]
+    : [
+        "Never send money or share your SSN or banking details to get a job.",
+        "If you already shared information or paid, report it at reportfraud.ftc.gov.",
+      ];
+
+  const reportAction = isEmail
+    ? "Report the email as phishing to your email provider, then delete it."
+    : "Report this listing on the site where you found it.";
+
+  const standardActions =
+    overallLevel === "Low" ? baselineActions : [reportAction, ...baselineActions];
+
+  // AI actions are only shown when the AI itself raised a concern
+  const aiActions =
+    aiLevel &&
+    aiLevel !== "Low" &&
+    result.aiAnalysis &&
+    result.aiAnalysis.recommended_actions
+      ? result.aiAnalysis.recommended_actions
+      : [];
 
   const weightStyles: {
     [key: string]: { border: string; bg: string; text: string; badge: string };
@@ -240,17 +270,42 @@ export default function Results() {
             <p className="text-xs text-gray-300 mt-4 pt-3 border-t border-gray-800 leading-relaxed">
               LegitCheck combines rule-based and AI analysis to catch as much
               as possible, but no detection system is perfect. A clean
-              result from both systems reduces risk it does not guarantee
+              result from both systems reduces risk — it does not guarantee
               legitimacy. Always use independent judgment.
             </p>
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <p className="font-semibold mb-3">Recommended Safety Actions</p>
+
+            {overallLevel === "Low" && (
+              <p className="text-sm text-gray-300 mb-4 leading-relaxed">
+                {isEmail
+                  ? "No major concerns were found, but still verify the sender independently before clicking links or replying."
+                  : "No major concerns were found, but still verify the company independently before sharing personal information."}
+              </p>
+            )}
+
+            {aiActions.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-purple-400 font-semibold mb-2">
+                  AI-SUGGESTED, SPECIFIC TO THIS SCAN
+                </p>
+                <ul className="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                  {aiActions.map((action, i) => (
+                    <li key={i}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-400 font-semibold mb-2">
+              STANDARD ADVICE
+            </p>
             <ul className="text-sm text-gray-300 space-y-2 list-disc list-inside">
-              <li>Do not provide social security number or passport data.</li>
-              <li>Report this listing on the host platform where you found it.</li>
-              <li>Block the sender if they reach out via SMS or personal WhatsApp.</li>
+              {standardActions.map((action, i) => (
+                <li key={i}>{action}</li>
+              ))}
             </ul>
 
             <button
@@ -259,7 +314,7 @@ export default function Results() {
               }
               className="w-full mt-4 py-2 border border-blue-600 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-950 transition-colors"
             >
-              Scan Another {result.contentType === "email" ? "Email" : "Job Posting"}
+              Scan Another {isEmail ? "Email" : "Job Posting"}
             </button>
           </div>
         </div>
