@@ -1,8 +1,20 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+interface Stats {
+  jobCount: number;
+  emailCount: number;
+  jobAvgMs: number;
+  emailAvgMs: number;
+}
+
+// Shows "—" when there are no scans of that type yet
+function formatSeconds(ms: number) {
+  return ms > 0 ? (ms / 1000).toFixed(1) + "s" : "—";
+}
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -13,7 +25,18 @@ function HomeContent() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [mode, setMode] = useState<"job_posting" | "email">(initialMode);
+  const [stats, setStats] = useState(null as Stats | null);
   const router = useRouter();
+
+  // Load the live scan totals each time the homepage opens
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setStats(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async () => {
     setErrorMsg("");
@@ -24,6 +47,7 @@ function HomeContent() {
     }
 
     setLoading(true);
+    const startTime = performance.now();
 
     try {
       // Run the rule-based engine and the AI layer at the same time
@@ -55,6 +79,18 @@ function HomeContent() {
       }
 
       const combined = { ...ruleData, aiAnalysis: aiData };
+
+      // Record the scan count and timing (no text is sent). If this fails,
+      // the scan itself is unaffected.
+      fetch("/api/stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: mode,
+          durationMs: Math.round(performance.now() - startTime),
+        }),
+        keepalive: true,
+      }).catch(() => {});
 
       sessionStorage.setItem("legitcheck_result", JSON.stringify(combined));
       router.push("/results");
@@ -98,7 +134,7 @@ function HomeContent() {
           ANTI-SCAM INTELLIGENCE
         </span>
         <h1 className="text-4xl md:text-5xl font-bold mt-3">
-          Detect Job Scams
+          Detect Job Scams Instantly
         </h1>
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
           Paste a job posting or suspicious email below to check if it's
@@ -194,25 +230,37 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="max-w-3xl w-full mx-auto mt-10 mb-16 grid grid-cols-3 gap-4">
+      {/* Live stats */}
+      <div className="max-w-3xl w-full mx-auto mt-10 mb-16 grid grid-cols-2 gap-4">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p className="text-2xl font-bold">482,912</p>
-          <p className="text-xs text-gray-500 mt-1">Scams Flagged</p>
+          <p className="text-2xl font-bold">
+            {stats ? stats.jobCount.toLocaleString() : "—"}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Job postings scanned</p>
+          <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-800">
+            Average scan time:{" "}
+            <span className="font-semibold text-white">
+              {formatSeconds(stats ? stats.jobAvgMs : 0)}
+            </span>
+          </p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p className="text-2xl font-bold">99.4%</p>
-          <p className="text-xs text-gray-500 mt-1">Detection Accuracy</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p className="text-2xl font-bold">Instant</p>
-          <p className="text-xs text-gray-500 mt-1">Analysis Speed</p>
+          <p className="text-2xl font-bold">
+            {stats ? stats.emailCount.toLocaleString() : "—"}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Emails scanned</p>
+          <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-800">
+            Average scan time:{" "}
+            <span className="font-semibold text-white">
+              {formatSeconds(stats ? stats.emailAvgMs : 0)}
+            </span>
+          </p>
         </div>
       </div>
 
       {/* Footer */}
       <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
-        <span>© 2026 LegitCheck. Rule-based fraud detection.</span>
+        <span>© 2026 LegitCheck. Rule-based and AI-assisted fraud detection.</span>
         <div className="flex gap-4">
           <Link href="/privacy" className="hover:text-gray-300 transition-colors">
             Privacy Policy
