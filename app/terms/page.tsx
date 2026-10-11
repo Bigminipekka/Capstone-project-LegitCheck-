@@ -14,7 +14,7 @@ export default function Terms() {
 
       <div className="max-w-2xl w-full mx-auto mt-12 mb-16 px-4">
         <h1 className="text-3xl font-bold mb-6">Terms of Service</h1>
-        <p className="text-gray-500 text-sm mb-8">Last updated: September 2026</p>
+        <p className="text-gray-500 text-sm mb-8">Last updated: October 2026</p>
 
         <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
           <section>
@@ -22,10 +22,12 @@ export default function Terms() {
               What LegitCheck Does
             </h2>
             <p>
-              LegitCheck analyzes text you submit against a rule-based set of
-              fraud indicators sourced from public consumer protection
-              guidance (FTC, BBB, FBI IC3). It returns a risk assessment
-              based on how many known red flags were detected.
+              LegitCheck analyzes text you submit in two independent ways: a
+              rule-based check against fraud indicators sourced from public
+              consumer protection guidance (FTC, BBB, FBI IC3), and an AI
+              review that looks for manipulation tactics and other warning
+              signs. The overall risk level shown is the higher of the two
+              ratings.
             </p>
           </section>
 
@@ -34,11 +36,26 @@ export default function Terms() {
               No Guarantee of Accuracy
             </h2>
             <p>
-              LegitCheck is a rule-based detection tool, not a guarantee.
-              It may fail to detect scams that don't match its rule set, and
-              it may occasionally flag legitimate content. Results should be
-              used as one signal among several, not as a sole basis for
-              deciding whether to trust a job posting or email.
+              Neither layer is a guarantee. The rule-based check may miss
+              scams that do not match its rules, and may occasionally flag
+              legitimate content. The AI review can also be wrong, and its
+              wording and rating can vary from one scan to the next. Results
+              should be used as one signal among several, not as the sole
+              basis for deciding whether to trust a job posting or email.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              Your Submissions
+            </h2>
+            <p>
+              Text you submit is processed as described in the{" "}
+              <Link href="/privacy" className="text-blue-400 hover:underline">
+                Privacy Policy
+              </Link>
+              , including being sent to a third-party AI service for the AI
+              review. Please do not submit sensitive personal information.
             </p>
           </section>
 

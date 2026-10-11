@@ -14,19 +14,47 @@ export default function Privacy() {
 
       <div className="max-w-2xl w-full mx-auto mt-12 mb-16 px-4">
         <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
-        <p className="text-gray-500 text-sm mb-8">Last updated: September 2026</p>
+        <p className="text-gray-500 text-sm mb-8">Last updated: October 2026</p>
 
         <div className="space-y-6 text-gray-300 text-sm leading-relaxed">
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">
-              What We Collect
+              What Happens to Your Submission
             </h2>
             <p>
-              When you submit a job posting or email to LegitCheck, that text
-              is sent to our server to be analyzed against our fraud
-              indicator rule set. We do not store, save, or log the content
-              you submit. Once your analysis is complete and displayed to
-              you, the submitted text is not retained anywhere.
+              When you submit a job posting or email, the text is sent to
+              LegitCheck&apos;s server and analyzed in two ways: a
+              rule-based check against our fraud indicator rule set, and an
+              AI review. LegitCheck does not save your submitted text in its
+              own database.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              Third-Party AI Service
+            </h2>
+            <p>
+              For the AI review, your submitted text is sent to
+              Anthropic&apos;s API, which runs the Claude AI model. Anthropic
+              handles that data under its own terms and privacy policy, not
+              this one. Please do not submit text that contains sensitive
+              personal information, such as your own Social Security number,
+              bank details, or passwords. If you are unsure, remove those
+              details before submitting.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              Anonymous Usage Counts
+            </h2>
+            <p>
+              Each time a scan is completed, LegitCheck records only the type
+              of scan (job posting or email), how long it took, and the time
+              it happened. This powers the scan counts and average scan times
+              shown on the homepage. It does not include your text, your
+              results, or anything that identifies you.
             </p>
           </section>
 
@@ -47,9 +75,10 @@ export default function Privacy() {
               No Accounts, No Tracking
             </h2>
             <p>
-              LegitCheck does not require you to create an account, and we
-              do not use tracking cookies or analytics to monitor individual
-              user behavior.
+              LegitCheck does not require you to create an account, and we do
+              not use tracking cookies or analytics to monitor individual
+              user behavior. Like most websites, the hosting provider may
+              keep routine technical logs of requests to the site.
             </p>
           </section>
 
@@ -60,8 +89,8 @@ export default function Privacy() {
             <p>
               LegitCheck is a student capstone project built for educational
               purposes. It is not a commercial product, and this policy
-              reflects the actual data practices of the project as built,
-              not a legal document reviewed by an attorney.
+              reflects the actual data practices of the project as built, not
+              a legal document reviewed by an attorney.
             </p>
           </section>
         </div>

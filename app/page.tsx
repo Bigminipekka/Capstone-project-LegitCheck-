@@ -191,8 +191,12 @@ function HomeContent() {
         {errorMsg && <p className="text-red-400 text-sm mt-2">{errorMsg}</p>}
 
         <div className="flex justify-between items-center mt-4">
-          <span className="text-xs text-gray-500 flex items-center gap-1">
-            🛡️ We do not save your personal job search data.
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+            🛡️ Your text is not saved. The AI review is processed by a third
+            party.{" "}
+            <Link href="/privacy" className="text-blue-400 hover:underline">
+              Details
+            </Link>
           </span>
 
           <button
