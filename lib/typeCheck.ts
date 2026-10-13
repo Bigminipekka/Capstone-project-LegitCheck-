@@ -23,6 +23,10 @@ const emailSignals = [
   /this (email|message) was sent to/,
   /do not reply|no-reply|noreply/,
   /view (this )?(email )?in (your )?browser/,
+  // Signs of a copied email header
+  /<[^<>\s]+@[^<>\s]+>/,
+  /^\s*to me\b/m,
+  /^\s*inbox\s*$/m,
 ];
 
 function countMatches(patterns: RegExp[], text: string) {
