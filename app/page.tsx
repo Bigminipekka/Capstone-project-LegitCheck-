@@ -12,6 +12,12 @@ interface Stats {
   emailAvgMs: number;
 }
 
+interface Shot {
+  id: number;
+  url: string;
+  name: string;
+}
+
 // Shows "—" when there are no scans of that type yet
 function formatSeconds(ms: number) {
   return ms > 0 ? (ms / 1000).toFixed(1) + "s" : "—";
@@ -36,7 +42,11 @@ function HomeContent() {
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrStatus, setOcrStatus] = useState("");
   const [mismatch, setMismatch] = useState(null as ContentKind | null);
+  const [shots, setShots] = useState([] as Shot[]);
+  const [viewing, setViewing] = useState(null as Shot | null);
   const fileInputRef = useRef(null as HTMLInputElement | null);
+  const shotsRef = useRef([] as Shot[]);
+  const nextShotId = useRef(1);
   const router = useRouter();
 
   // Load the live scan totals each time the homepage opens
@@ -49,9 +59,39 @@ function HomeContent() {
       .catch(() => {});
   }, []);
 
+  // Keep a copy of the screenshot list so we can free the images on exit
+  useEffect(() => {
+    shotsRef.current = shots;
+  }, [shots]);
+
+  useEffect(() => {
+    return () => {
+      shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url));
+    };
+  }, []);
+
+  // Close the enlarged screenshot with the Escape key
+  useEffect(() => {
+    if (!viewing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setViewing(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewing]);
+
   const changeMode = (newMode: "job_posting" | "email") => {
     setMode(newMode);
     setMismatch(null);
+  };
+
+  const removeShot = (id: number) => {
+    setShots((prev) => {
+      const target = prev.find((s) => s.id === id);
+      if (target) URL.revokeObjectURL(target.url);
+      return prev.filter((s) => s.id !== id);
+    });
+    setViewing((v) => (v && v.id === id ? null : v));
   };
 
   // Read text out of one or more screenshots and add it to the text box
@@ -106,6 +146,14 @@ function HomeContent() {
         );
         return;
       }
+
+      // Keep the screenshots on the page so they can be compared with the text
+      const newShots: Shot[] = images.map((file) => ({
+        id: nextShotId.current++,
+        url: URL.createObjectURL(file),
+        name: file.name || "Pasted screenshot",
+      }));
+      setShots((prev) => [...prev, ...newShots]);
 
       setJobPosting(
         (prev) =>
@@ -334,9 +382,50 @@ function HomeContent() {
           )}
         </div>
 
+        {/* Screenshot thumbnails */}
+        {shots.length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs text-gray-400 mb-2">
+              Your screenshots (click one to enlarge)
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {shots.map((shot, index) => (
+                <div key={shot.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setViewing(shot)}
+                    title="Click to enlarge"
+                    className="block rounded-lg overflow-hidden border border-gray-700 hover:border-blue-500 transition-colors"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={shot.url}
+                      alt={`Screenshot ${index + 1}`}
+                      className="h-24 w-auto max-w-[220px] object-cover"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeShot(shot.id)}
+                    aria-label={`Remove screenshot ${index + 1}`}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gray-800 border border-gray-600 text-gray-300 hover:text-white hover:bg-red-700 text-xs flex items-center justify-center transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+              Removing a screenshot here does not remove its text from the
+              box above. Edit the text box to change what gets scanned.
+            </p>
+          </div>
+        )}
+
         <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-          Screenshots are read in your browser, and the extracted text appears
-          above so you can check it before scanning.
+          Screenshots are read in your browser. The extracted text appears
+          above so you can check it before scanning, and your screenshots
+          stay visible here for comparison. They are not uploaded or saved.
           {mode === "job_posting"
             ? " Job postings are often longer than one screen, so add more than one screenshot, in order, to capture the whole posting."
             : ""}
@@ -457,6 +546,35 @@ function HomeContent() {
           <span>🔒 SSL Encrypted</span>
         </div>
       </footer>
+
+      {/* Enlarged screenshot */}
+      {viewing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setViewing(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative max-w-5xl max-h-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={viewing.url}
+              alt="Enlarged screenshot"
+              className="max-h-[85vh] w-auto rounded-lg border border-gray-700"
+            />
+            <button
+              type="button"
+              onClick={() => setViewing(null)}
+              className="absolute top-2 right-2 px-3 py-1 rounded-lg bg-gray-900/90 border border-gray-600 text-sm text-white hover:bg-gray-800 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
