@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -16,6 +16,8 @@ function formatSeconds(ms: number) {
   return ms > 0 ? (ms / 1000).toFixed(1) + "s" : "—";
 }
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
 function HomeContent() {
   const searchParams = useSearchParams();
   const initialMode =
@@ -26,6 +28,9 @@ function HomeContent() {
   const [errorMsg, setErrorMsg] = useState("");
   const [mode, setMode] = useState<"job_posting" | "email">(initialMode);
   const [stats, setStats] = useState(null as Stats | null);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState("");
+  const fileInputRef = useRef(null as HTMLInputElement | null);
   const router = useRouter();
 
   // Load the live scan totals each time the homepage opens
@@ -37,6 +42,85 @@ function HomeContent() {
       })
       .catch(() => {});
   }, []);
+
+  // Read text out of one or more screenshots and add it to the text box
+  const readImages = async (files: File[]) => {
+    setErrorMsg("");
+
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) {
+      setErrorMsg("Please choose an image file (PNG, JPG, or WebP).");
+      return;
+    }
+    if (images.some((f) => f.size > MAX_IMAGE_BYTES)) {
+      setErrorMsg("Each image must be under 10 MB.");
+      return;
+    }
+
+    setOcrBusy(true);
+    try {
+      const { createWorker } = await import("tesseract.js");
+      let currentImage = 1;
+
+      const worker = await createWorker("eng", 1, {
+        logger: (m: { status: string; progress: number }) => {
+          if (m.status === "recognizing text") {
+            setOcrStatus(
+              `Reading image ${currentImage} of ${images.length}... ${Math.round(
+                m.progress * 100
+              )}%`
+            );
+          } else {
+            setOcrStatus("Loading the text reader (first time only)...");
+          }
+        },
+      });
+
+      const pieces: string[] = [];
+      try {
+        for (let i = 0; i < images.length; i++) {
+          currentImage = i + 1;
+          const { data } = await worker.recognize(images[i]);
+          const cleaned = data.text.trim();
+          if (cleaned) pieces.push(cleaned);
+        }
+      } finally {
+        await worker.terminate();
+      }
+
+      if (pieces.length === 0) {
+        setErrorMsg(
+          "No readable text was found in the image. Try a clearer or larger screenshot, or paste the text instead."
+        );
+        return;
+      }
+
+      setJobPosting(
+        (prev) =>
+          (prev.trim() ? prev.trimEnd() + "\n\n" : "") + pieces.join("\n\n")
+      );
+    } catch (err) {
+      console.error("OCR error:", err);
+      setErrorMsg("Could not read the image. Try again or paste the text instead.");
+    } finally {
+      setOcrBusy(false);
+      setOcrStatus("");
+    }
+  };
+
+  // Returns true if the clipboard held an image (so normal pasting is skipped)
+  const handleClipboard = (clipboard: DataTransfer): boolean => {
+    const imageFiles: File[] = [];
+    for (const item of Array.from(clipboard.items)) {
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length === 0) return false;
+    readImages(imageFiles);
+    return true;
+  };
 
   const handleSubmit = async () => {
     setErrorMsg("");
@@ -134,12 +218,13 @@ function HomeContent() {
           ANTI-SCAM INTELLIGENCE
         </span>
         <h1 className="text-4xl md:text-5xl font-bold mt-3">
-          Detect Job Scams Instantly
+          Detect Job Scams Fast
         </h1>
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-          Paste a job posting or suspicious email below to check if it's
-          likely a scam. Our algorithm analyzes salary claims, request
-          channels, contact details, and grammatical patterns.
+          Paste a job posting or suspicious email, or add a screenshot of
+          one, to check if it's likely a scam. Our algorithm analyzes salary
+          claims, request channels, contact details, and grammatical
+          patterns.
         </p>
       </div>
 
@@ -173,25 +258,65 @@ function HomeContent() {
             {mode === "email" ? "EMAIL CONTENT" : "JOB DESCRIPTION / POSTING TEXT"}
           </span>
           <span className="text-xs text-gray-500">
-            Support for pasted text, HTML, or raw links
+            Paste text, or paste or upload a screenshot
           </span>
         </div>
 
         <textarea
           value={jobPosting}
           onChange={(e) => setJobPosting(e.target.value)}
+          onPaste={(e) => {
+            if (handleClipboard(e.clipboardData)) e.preventDefault();
+          }}
           placeholder={
             mode === "email"
-              ? "Paste the email content here..."
-              : "Paste the job posting here..."
+              ? "Paste the email content here, or paste a screenshot..."
+              : "Paste the job posting here, or paste a screenshot..."
           }
           className="w-full h-48 p-4 rounded-lg bg-gray-950 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
         />
 
+        {/* Screenshot upload */}
+        <div className="flex flex-wrap items-center gap-3 mt-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              e.target.value = "";
+              if (files.length > 0) readImages(files);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={ocrBusy || loading}
+            className="px-4 py-1.5 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors"
+          >
+            📷 Add screenshot
+          </button>
+          {ocrBusy && (
+            <span className="text-xs text-purple-300">
+              {ocrStatus || "Reading image..."}
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+          Screenshots are read in your browser, and the extracted text appears
+          above so you can check it before scanning.
+          {mode === "job_posting"
+            ? " Job postings are often longer than one screen, so add more than one screenshot, in order, to capture the whole posting."
+            : ""}
+        </p>
+
         {errorMsg && <p className="text-red-400 text-sm mt-2">{errorMsg}</p>}
 
         <div className="flex justify-between items-center mt-4">
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
+          <span className="text-xs text-gray-500 flex items-center gap-1">
             🛡️ Your text is not saved. The AI review is processed by a third
             party.{" "}
             <Link href="/privacy" className="text-blue-400 hover:underline">
@@ -201,7 +326,7 @@ function HomeContent() {
 
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || ocrBusy}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
             {loading ? (

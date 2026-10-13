@@ -30,6 +30,21 @@ export default function Privacy() {
             </p>
           </section>
 
+                    <section>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              Screenshots
+            </h2>
+            <p>
+              If you add a screenshot, the text in it is read inside your
+              browser. The image itself is not uploaded to LegitCheck. Only
+              the text that appears in the box when you click scan is sent
+              for analysis, the same as text you paste. The first time you
+              use this feature, your browser downloads the text-reading
+              software and English language data from a public content
+              delivery network.
+            </p>
+          </section>
+
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">
               Third-Party AI Service
