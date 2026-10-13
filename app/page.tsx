@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { guessContentType, ContentKind } from "@/lib/typeCheck";
 
 interface Stats {
   jobCount: number;
@@ -14,6 +15,10 @@ interface Stats {
 // Shows "—" when there are no scans of that type yet
 function formatSeconds(ms: number) {
   return ms > 0 ? (ms / 1000).toFixed(1) + "s" : "—";
+}
+
+function kindName(kind: ContentKind) {
+  return kind === "email" ? "email" : "job posting";
 }
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -30,6 +35,7 @@ function HomeContent() {
   const [stats, setStats] = useState(null as Stats | null);
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrStatus, setOcrStatus] = useState("");
+  const [mismatch, setMismatch] = useState(null as ContentKind | null);
   const fileInputRef = useRef(null as HTMLInputElement | null);
   const router = useRouter();
 
@@ -43,9 +49,15 @@ function HomeContent() {
       .catch(() => {});
   }, []);
 
+  const changeMode = (newMode: "job_posting" | "email") => {
+    setMode(newMode);
+    setMismatch(null);
+  };
+
   // Read text out of one or more screenshots and add it to the text box
   const readImages = async (files: File[]) => {
     setErrorMsg("");
+    setMismatch(null);
 
     const images = files.filter((f) => f.type.startsWith("image/"));
     if (images.length === 0) {
@@ -122,13 +134,23 @@ function HomeContent() {
     return true;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (skipTypeCheck: boolean) => {
     setErrorMsg("");
 
     if (jobPosting.trim().length < 20) {
       setErrorMsg("Please paste a longer message to analyze.");
       return;
     }
+
+    // If the text clearly looks like the other type, ask before scanning
+    if (!skipTypeCheck) {
+      const guess = guessContentType(jobPosting);
+      if (guess && guess !== mode) {
+        setMismatch(guess);
+        return;
+      }
+    }
+    setMismatch(null);
 
     setLoading(true);
     const startTime = performance.now();
@@ -230,9 +252,9 @@ function HomeContent() {
 
       {/* Input Card */}
       <div className="max-w-3xl w-full mx-auto mt-10 bg-gray-900 border border-gray-800 rounded-xl p-6">
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-1">
           <button
-            onClick={() => setMode("job_posting")}
+            onClick={() => changeMode("job_posting")}
             className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
               mode === "job_posting"
                 ? "bg-blue-600 text-white"
@@ -242,7 +264,7 @@ function HomeContent() {
             Job Posting
           </button>
           <button
-            onClick={() => setMode("email")}
+            onClick={() => changeMode("email")}
             className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
               mode === "email"
                 ? "bg-blue-600 text-white"
@@ -252,6 +274,10 @@ function HomeContent() {
             Email
           </button>
         </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Choose Email for messages you received, and Job Posting for
+          listings.
+        </p>
 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-300">
@@ -264,7 +290,10 @@ function HomeContent() {
 
         <textarea
           value={jobPosting}
-          onChange={(e) => setJobPosting(e.target.value)}
+          onChange={(e) => {
+            setJobPosting(e.target.value);
+            setMismatch(null);
+          }}
           onPaste={(e) => {
             if (handleClipboard(e.clipboardData)) e.preventDefault();
           }}
@@ -313,6 +342,34 @@ function HomeContent() {
             : ""}
         </p>
 
+        {/* Wrong-mode notice */}
+        {mismatch && (
+          <div className="mt-4 border border-yellow-800 bg-yellow-950/30 rounded-lg p-4">
+            <p className="text-sm text-yellow-200 leading-relaxed">
+              This looks like {mismatch === "email" ? "an" : "a"}{" "}
+              <strong>{kindName(mismatch)}</strong>, but you&apos;re in{" "}
+              <strong>{mode === "email" ? "Email" : "Job Posting"}</strong>{" "}
+              mode. Results are more accurate when the mode matches the text.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => changeMode(mismatch)}
+                className="px-4 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                Switch to {mismatch === "email" ? "Email" : "Job Posting"} mode
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmit(true)}
+                className="px-4 py-1.5 border border-gray-600 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                Scan anyway as {kindName(mode)}
+              </button>
+            </div>
+          </div>
+        )}
+
         {errorMsg && <p className="text-red-400 text-sm mt-2">{errorMsg}</p>}
 
         <div className="flex justify-between items-center mt-4">
@@ -325,7 +382,7 @@ function HomeContent() {
           </span>
 
           <button
-            onClick={handleSubmit}
+            onClick={() => handleSubmit(false)}
             disabled={loading || ocrBusy}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
