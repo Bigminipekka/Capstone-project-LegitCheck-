@@ -85,11 +85,14 @@ export function checkEmailRules(text: string): RuleMatch[] {
           t
         ),
     },
-    {
+       {
       indicator:
         "Claims to be a government agency asking for payment via gift cards, wire, or crypto",
       test: (t) =>
-        /(irs|social security administration|fbi|ftc|fema).{0,60}(gift card|wire transfer|cryptocurrency|bitcoin|payment)/i.test(
+        /\b(irs|internal revenue service|social security administration|fbi|ftc|fema)\b[\s\S]{0,250}\b(gift cards?|wire transfers?|cryptocurrency|bitcoin|crypto)\b/i.test(
+          t
+        ) ||
+        /\b(gift cards?|wire transfers?|cryptocurrency|bitcoin|crypto)\b[\s\S]{0,250}\b(irs|internal revenue service|social security administration|fbi|ftc|fema)\b/i.test(
           t
         ),
     },
