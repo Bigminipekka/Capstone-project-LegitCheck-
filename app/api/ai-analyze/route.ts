@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { Hit } from "@/lib/matching";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -12,6 +13,37 @@ function cleanList(value: unknown, max: number): string[] {
     .filter((item) => typeof item === "string" && item.trim().length > 0)
     .map((item) => String(item).trim())
     .slice(0, max);
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Find where a quoted phrase appears in the original text. Quotes that are not
+// really in the text are dropped, so the AI cannot make up highlights.
+function findQuote(text: string, quote: string): Hit[] {
+  const cleaned = quote
+    .trim()
+    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
+    .trim();
+  if (cleaned.length < 4 || cleaned.length > 200) return [];
+
+  const pattern = escapeRegex(cleaned)
+    .replace(/\s+/g, "\\s+")
+    .replace(/['‘’]/g, "['‘’]")
+    .replace(/["“”]/g, '["“”]');
+
+  const hits: Hit[] = [];
+  try {
+    for (const match of text.matchAll(new RegExp(pattern, "gi"))) {
+      const start = match.index ?? 0;
+      hits.push({ start, end: start + match[0].length });
+      if (hits.length >= 3) break;
+    }
+  } catch {
+    return [];
+  }
+  return hits;
 }
 
 export async function POST(req: NextRequest) {
@@ -29,7 +61,7 @@ export async function POST(req: NextRequest) {
   try {
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 700,
+      max_tokens: 1000,
       messages: [
         {
           role: "user",
@@ -46,8 +78,11 @@ Respond in this exact JSON format only, with no other text:
   "concern_level": "Low" | "Medium" | "High",
   "summary": "A 1-2 sentence plain-language summary of your assessment",
   "observations": ["short observation 1", "short observation 2", "up to 4 total"],
+  "quotes": ["exact phrase from the text", "up to 5 total"],
   "recommended_actions": ["short action 1", "short action 2", "up to 3 total"]
 }
+
+For quotes: copy up to 5 short phrases (under 15 words each) exactly as they appear in the text that support your concern, so they can be highlighted for the reader. Copy them word for word. Do not paraphrase, shorten with ellipses, or add quotation marks. If your concern level is Low, return an empty array.
 
 For recommended_actions: give 2-3 steps the reader should take that are specific to the concerns you found in this ${contentLabel}. Each step must be one clear, single-action sentence. Do not repeat generic advice such as not sharing your SSN, reporting to the FTC, or reporting the ${contentLabel} to the job board or email provider, because that is covered separately. If your concern level is High, do not suggest proceeding after research; every step should protect the reader. When suggesting verifying a company, point to the state business registry (Secretary of State) or the Better Business Bureau, not the SEC. Do not tell the reader simply not to apply or reply, and do not mention reporting to the job board; both are covered separately. If a government agency is the right place to report this type of scam, name the agency. If your concern level is Low, return an empty array.
 
@@ -66,6 +101,7 @@ ${text}`,
       concern_level?: string;
       summary?: string;
       observations?: unknown;
+      quotes?: unknown;
       recommended_actions?: unknown;
     };
     let parsedOk = false;
@@ -83,6 +119,7 @@ ${text}`,
         summary: "AI analysis completed but response could not be parsed.",
         observations: [],
         recommended_actions: [],
+        highlights: [],
       });
     }
 
@@ -92,11 +129,18 @@ ${text}`,
         ? parsed.concern_level
         : "Unknown";
 
+    // Turn the quoted phrases into positions in the original text
+    const highlights: Hit[] = [];
+    for (const quote of cleanList(parsed.quotes, 6)) {
+      highlights.push(...findQuote(text, quote));
+    }
+
     return NextResponse.json({
       concern_level: concern,
       summary: typeof parsed.summary === "string" ? parsed.summary : "",
       observations: cleanList(parsed.observations, 4),
       recommended_actions: cleanList(parsed.recommended_actions, 3),
+      highlights: highlights.slice(0, 12),
     });
   } catch (error) {
     console.error("AI analysis error:", error);

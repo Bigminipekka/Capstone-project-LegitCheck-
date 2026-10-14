@@ -232,7 +232,11 @@ function HomeContent() {
         aiData = await aiRes.json();
       }
 
-      const combined = { ...ruleData, aiAnalysis: aiData };
+            const combined = {
+        ...ruleData,
+        aiAnalysis: aiData,
+        submittedText: jobPosting,
+      };
 
       // Record the scan count and timing (no text is sent). If this fails,
       // the scan itself is unaffected.

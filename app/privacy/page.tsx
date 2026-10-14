@@ -78,10 +78,11 @@ export default function Privacy() {
               How Results Are Handled
             </h2>
             <p>
-              Your analysis results are temporarily stored in your own
-              browser (using session storage) so you can view them on the
-              Results page. This data stays on your device and is cleared
-              when you close your browser tab or session.
+              Your analysis results, along with a copy of the text you
+              submitted so it can be highlighted on the Results page, are
+              temporarily stored in your own browser (using session storage).
+              This data stays on your device and is cleared when you close
+              your browser tab or session.
             </p>
           </section>
 

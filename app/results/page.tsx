@@ -4,12 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+interface Hit {
+  start: number;
+  end: number;
+}
+
 interface FlaggedResult {
   indicator: string;
   weight: string;
   description: string;
   source: string;
   category: string;
+  hits?: Hit[];
 }
 
 interface AIAnalysis {
@@ -17,6 +23,7 @@ interface AIAnalysis {
   summary: string;
   observations: string[];
   recommended_actions?: string[];
+  highlights?: Hit[];
 }
 
 interface AnalysisResult {
@@ -26,6 +33,67 @@ interface AnalysisResult {
   flaggedResults: FlaggedResult[];
   contentType?: string;
   aiAnalysis?: AIAnalysis | null;
+  submittedText?: string;
+}
+
+type Mark = "High" | "Medium-High" | "Medium" | "AI";
+
+interface Segment {
+  text: string;
+  mark: Mark | null;
+}
+
+const markStyles: { [key: string]: string } = {
+  High: "bg-red-500/30 text-red-100",
+  "Medium-High": "bg-orange-500/30 text-orange-100",
+  Medium: "bg-yellow-500/30 text-yellow-100",
+  AI: "bg-purple-500/30 text-purple-100",
+};
+
+const markStrength: { [key: string]: number } = {
+  AI: 1,
+  Medium: 2,
+  "Medium-High": 3,
+  High: 4,
+};
+
+// Split the submitted text into marked and unmarked pieces. Where marks
+// overlap, the more severe one wins and rule matches beat AI quotes.
+function buildSegments(
+  text: string,
+  flags: FlaggedResult[],
+  aiHits: Hit[]
+): Segment[] {
+  const marks = new Array(text.length).fill(null) as (Mark | null)[];
+
+  const paint = (hit: Hit, mark: Mark) => {
+    const start = Math.max(0, hit.start);
+    const end = Math.min(text.length, hit.end);
+    for (let i = start; i < end; i++) {
+      const current = marks[i];
+      if (current === null || markStrength[mark] > markStrength[current]) {
+        marks[i] = mark;
+      }
+    }
+  };
+
+  aiHits.forEach((hit) => paint(hit, "AI"));
+  flags.forEach((flag) => {
+    let mark: Mark = "Medium";
+    if (flag.weight === "High") mark = "High";
+    else if (flag.weight === "Medium-High") mark = "Medium-High";
+    (flag.hits || []).forEach((hit) => paint(hit, mark));
+  });
+
+  const segments: Segment[] = [];
+  let start = 0;
+  for (let i = 1; i <= text.length; i++) {
+    if (i === text.length || marks[i] !== marks[start]) {
+      segments.push({ text: text.slice(start, i), mark: marks[start] });
+      start = i;
+    }
+  }
+  return segments;
 }
 
 export default function Results() {
@@ -189,7 +257,37 @@ export default function Results() {
     },
   };
 
-  // ---- The two result cards, built separately so their order can change ----
+  // ---- Highlighting: where in the submitted text each flag was found ----
+  const submitted = result.submittedText || "";
+
+  const aiHighlights =
+    result.aiAnalysis && result.aiAnalysis.highlights
+      ? result.aiAnalysis.highlights
+      : [];
+
+  const segments = submitted
+    ? buildSegments(submitted, result.flaggedResults, aiHighlights)
+    : [];
+  const anyMarked = segments.some((segment) => segment.mark !== null);
+
+  // The phrases that triggered one flag, shortened and without repeats
+  const snippetsFor = (flag: FlaggedResult) => {
+    const seen: string[] = [];
+    const out: string[] = [];
+    (flag.hits || []).forEach((hit) => {
+      const phrase = submitted
+        .slice(hit.start, hit.end)
+        .replace(/\s+/g, " ")
+        .trim();
+      if (phrase && !seen.includes(phrase.toLowerCase())) {
+        seen.push(phrase.toLowerCase());
+        out.push(phrase);
+      }
+    });
+    return out;
+  };
+
+  // ---- The result cards, built separately so their order can change ----
   const rulesCard = (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
       <p className="text-xs text-blue-400 font-semibold">DIAGNOSTIC REPORT</p>
@@ -209,6 +307,8 @@ export default function Results() {
         <div className="space-y-3">
           {result.flaggedResults.map((flag, i) => {
             const style = weightStyles[flag.weight] || weightStyles.Medium;
+            const snippets = snippetsFor(flag);
+            const hasHits = !!flag.hits && flag.hits.length > 0;
 
             return (
               <div
@@ -221,7 +321,7 @@ export default function Results() {
                   >
                     ✕
                   </span>
-                  <div>
+                  <div className="min-w-0">
                     <p className={`font-semibold ${style.text}`}>
                       {flag.indicator}
                     </p>
@@ -231,6 +331,41 @@ export default function Results() {
                     <p className="text-xs text-gray-600 mt-1">
                       Source: {flag.source} • Weight: {flag.weight}
                     </p>
+
+                    {submitted && (
+                      <div className="mt-2">
+                        {snippets.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {snippets.slice(0, 3).map((phrase, j) => (
+                              <span
+                                key={j}
+                                className="inline-block max-w-full break-words rounded border border-gray-700 bg-gray-950/60 px-2 py-0.5 text-xs text-gray-200"
+                              >
+                                &ldquo;
+                                {phrase.length > 90
+                                  ? phrase.slice(0, 87) + "…"
+                                  : phrase}
+                                &rdquo;
+                              </span>
+                            ))}
+                            {snippets.length > 3 && (
+                              <span className="self-center text-xs text-gray-400">
+                                +{snippets.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        ) : hasHits ? (
+                          <p className="text-xs text-gray-400">
+                            Marked in your text below (spacing).
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400">
+                            Based on what is missing or on the text as a
+                            whole, so there is no single phrase to point to.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -270,6 +405,61 @@ export default function Results() {
             ))}
           </ul>
         )}
+    </div>
+  ) : null;
+
+  const highlightCard = submitted ? (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <p className="text-xs text-blue-400 font-semibold">WHERE WE FOUND IT</p>
+      <h2 className="text-xl font-bold mt-1 mb-1">
+        Your text, with flags marked
+      </h2>
+      <p className="text-xs text-gray-400 mb-3 leading-relaxed">
+        Marks show where a rule matched or where the AI quoted your text. They
+        explain why something was flagged and are not proof of a scam. Flags
+        based on something missing have nothing to mark.
+      </p>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-xs text-gray-300">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-red-500/40"></span>
+          High-weight rule
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-orange-500/40"></span>
+          Medium-High rule
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-yellow-500/40"></span>
+          Medium rule
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-purple-500/40"></span>
+          Quoted by the AI review
+        </span>
+      </div>
+
+      <div className="whitespace-pre-wrap break-words text-sm text-gray-300 leading-relaxed bg-gray-950 border border-gray-800 rounded-lg p-4 max-h-96 overflow-y-auto">
+        {segments.map((segment, i) =>
+          segment.mark ? (
+            <mark
+              key={i}
+              className={`rounded px-0.5 ${markStyles[segment.mark]}`}
+            >
+              {segment.text}
+            </mark>
+          ) : (
+            <span key={i}>{segment.text}</span>
+          )
+        )}
+      </div>
+
+      {!anyMarked && (
+        <p className="text-xs text-gray-400 mt-3">
+          Nothing in this text could be marked. That is expected when no flags
+          were raised or when the flags come from something missing.
+        </p>
+      )}
     </div>
   ) : null;
 
@@ -420,6 +610,11 @@ export default function Results() {
           {aiFirst ? rulesCard : aiCard}
         </div>
       </div>
+
+      {/* Highlighted text */}
+      {highlightCard && (
+        <div className="max-w-6xl w-full mx-auto mt-6 px-4">{highlightCard}</div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-gray-800 py-6 px-8 mt-10 flex justify-between text-xs text-gray-500">

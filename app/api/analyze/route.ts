@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { checkRules } from "@/lib/detection";
 import { checkEmailRules } from "@/lib/emailDetection";
 
-const weightValues: Record<string, number> = {
+const weightValues: { [key: string]: number } = {
   High: 3,
   "Medium-High": 2,
   Medium: 1,
@@ -28,7 +28,14 @@ export async function POST(req: NextRequest) {
     .eq("content_type", contentType);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Rules read error:", error.message);
+    return NextResponse.json(
+      {
+        error:
+          "We're having trouble accessing our fraud database right now. Please try again in a moment.",
+      },
+      { status: 500 }
+    );
   }
 
   // Run the correct detection logic based on type
@@ -45,6 +52,7 @@ export async function POST(req: NextRequest) {
         description: rule?.description || "",
         source: rule?.source || "",
         category: rule?.category || "",
+        hits: m.hits,
       };
     });
 
