@@ -36,25 +36,45 @@ interface AnalysisResult {
   submittedText?: string;
 }
 
-type Mark = "High" | "Medium-High" | "Medium" | "AI";
+interface DomainResult {
+  domain: string;
+  status: "ok" | "not_found" | "unavailable";
+  registered?: string;
+  ageDays?: number;
+  reason?: string;
+  hits: Hit[];
+}
+
+interface DomainInfo {
+  domains: DomainResult[];
+  truncated: boolean;
+}
+
+type Mark = "High" | "Medium-High" | "Medium" | "AI" | "Domain";
 
 interface Segment {
   text: string;
   mark: Mark | null;
 }
 
+// Domains registered more recently than these many days are called out
+const NEW_DAYS = 30;
+const RECENT_DAYS = 180;
+
 const markStyles: { [key: string]: string } = {
   High: "bg-red-500/30 text-red-100",
   "Medium-High": "bg-orange-500/30 text-orange-100",
   Medium: "bg-yellow-500/30 text-yellow-100",
   AI: "bg-purple-500/30 text-purple-100",
+  Domain: "bg-sky-500/30 text-sky-100",
 };
 
 const markStrength: { [key: string]: number } = {
   AI: 1,
-  Medium: 2,
-  "Medium-High": 3,
-  High: 4,
+  Domain: 2,
+  Medium: 3,
+  "Medium-High": 4,
+  High: 5,
 };
 
 // Split the submitted text into marked and unmarked pieces. Where marks
@@ -62,7 +82,8 @@ const markStrength: { [key: string]: number } = {
 function buildSegments(
   text: string,
   flags: FlaggedResult[],
-  aiHits: Hit[]
+  aiHits: Hit[],
+  domainHits: Hit[]
 ): Segment[] {
   const marks = new Array(text.length).fill(null) as (Mark | null)[];
 
@@ -78,6 +99,7 @@ function buildSegments(
   };
 
   aiHits.forEach((hit) => paint(hit, "AI"));
+  domainHits.forEach((hit) => paint(hit, "Domain"));
   flags.forEach((flag) => {
     let mark: Mark = "Medium";
     if (flag.weight === "High") mark = "High";
@@ -96,9 +118,72 @@ function buildSegments(
   return segments;
 }
 
+function describeAge(days: number) {
+  if (days < 1) return "today";
+  if (days === 1) return "1 day ago";
+  if (days < 60) return `${days} days ago`;
+  if (days < 730) return `${Math.round(days / 30.44)} months ago`;
+  return `${Math.floor(days / 365)} years ago`;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function domainTone(d: DomainResult) {
+  if (d.status === "ok" && d.ageDays !== undefined) {
+    if (d.ageDays < NEW_DAYS) return "new";
+    if (d.ageDays < RECENT_DAYS) return "recent";
+    return "established";
+  }
+  if (d.status === "not_found") return "missing";
+  return "unknown";
+}
+
+const domainStyles: {
+  [key: string]: { border: string; bg: string; label: string; text: string };
+} = {
+  new: {
+    border: "border-red-800",
+    bg: "bg-red-950/30",
+    label: "Very new",
+    text: "text-red-300",
+  },
+  recent: {
+    border: "border-yellow-800",
+    bg: "bg-yellow-950/30",
+    label: "Fairly new",
+    text: "text-yellow-300",
+  },
+  established: {
+    border: "border-gray-700",
+    bg: "bg-gray-950/40",
+    label: "Established",
+    text: "text-gray-300",
+  },
+  missing: {
+    border: "border-yellow-800",
+    bg: "bg-yellow-950/30",
+    label: "No record found",
+    text: "text-yellow-300",
+  },
+  unknown: {
+    border: "border-gray-700",
+    bg: "bg-gray-950/40",
+    label: "Could not check",
+    text: "text-gray-400",
+  },
+};
+
 export default function Results() {
   const router = useRouter();
   const [result, setResult] = useState(null as AnalysisResult | null);
+  const [domainInfo, setDomainInfo] = useState(null as DomainInfo | null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("legitcheck_result");
@@ -106,6 +191,27 @@ export default function Results() {
       setResult(JSON.parse(stored));
     }
   }, []);
+
+  // Look up domain registration dates after the results are on screen
+  useEffect(() => {
+    if (!result || !result.submittedText) return;
+    let cancelled = false;
+    fetch("/api/domain-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: result.submittedText }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && Array.isArray(data.domains)) {
+          setDomainInfo(data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [result]);
 
   if (!result) {
     return (
@@ -265,8 +371,19 @@ export default function Results() {
       ? result.aiAnalysis.highlights
       : [];
 
+  // Domains that are new, or have no record, are marked in the text
+  const domainHits: Hit[] = [];
+  if (domainInfo) {
+    domainInfo.domains.forEach((d) => {
+      const tone = domainTone(d);
+      if (tone === "new" || tone === "recent" || tone === "missing") {
+        domainHits.push(...d.hits);
+      }
+    });
+  }
+
   const segments = submitted
-    ? buildSegments(submitted, result.flaggedResults, aiHighlights)
+    ? buildSegments(submitted, result.flaggedResults, aiHighlights, domainHits)
     : [];
   const anyMarked = segments.some((segment) => segment.mark !== null);
 
@@ -408,6 +525,63 @@ export default function Results() {
     </div>
   ) : null;
 
+  const domainCard =
+    domainInfo && domainInfo.domains.length > 0 ? (
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+        <p className="text-xs text-sky-400 font-semibold">DOMAIN CHECK</p>
+        <h2 className="text-xl font-bold mt-1 mb-1">
+          When these domains were registered
+        </h2>
+        <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+          Websites and email addresses in your text were looked up in public
+          domain registration records. A recent date can be innocent, since
+          many honest businesses are new, and an old date does not make a
+          domain safe. This check is shown for context and does not change the
+          risk rating.
+        </p>
+
+        <div className="space-y-3">
+          {domainInfo.domains.map((d) => {
+            const tone = domainTone(d);
+            const style = domainStyles[tone];
+            return (
+              <div
+                key={d.domain}
+                className={`border rounded-lg p-4 ${style.border} ${style.bg}`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-white break-all">
+                    {d.domain}
+                  </p>
+                  <span className={`text-xs font-semibold ${style.text}`}>
+                    {style.label}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-300 mt-1">
+                  {d.status === "ok" &&
+                    d.registered !== undefined &&
+                    d.ageDays !== undefined &&
+                    `Registered ${describeAge(d.ageDays)} (${formatDate(
+                      d.registered
+                    )}).`}
+                  {d.status === "not_found" &&
+                    "No registration record was found. The domain may not exist, or the lookup service may not cover it."}
+                  {d.status === "unavailable" &&
+                    (d.reason || "This domain could not be checked.")}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        {domainInfo.truncated && (
+          <p className="text-xs text-gray-400 mt-3">
+            Only the first few domains in your text were checked.
+          </p>
+        )}
+      </div>
+    ) : null;
+
   const highlightCard = submitted ? (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
       <p className="text-xs text-blue-400 font-semibold">WHERE WE FOUND IT</p>
@@ -415,9 +589,10 @@ export default function Results() {
         Your text, with flags marked
       </h2>
       <p className="text-xs text-gray-400 mb-3 leading-relaxed">
-        Marks show where a rule matched or where the AI quoted your text. They
-        explain why something was flagged and are not proof of a scam. Flags
-        based on something missing have nothing to mark.
+        Marks show where a rule matched, where the AI quoted your text, or
+        where a domain looked new. They explain why something was flagged and
+        are not proof of a scam. Flags based on something missing have nothing
+        to mark.
       </p>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-xs text-gray-300">
@@ -436,6 +611,10 @@ export default function Results() {
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded bg-purple-500/40"></span>
           Quoted by the AI review
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-sky-500/40"></span>
+          New or unregistered domain
         </span>
       </div>
 
@@ -608,6 +787,7 @@ export default function Results() {
         <div className="md:col-span-2 space-y-6">
           {aiFirst ? aiCard : rulesCard}
           {aiFirst ? rulesCard : aiCard}
+          {domainCard}
         </div>
       </div>
 

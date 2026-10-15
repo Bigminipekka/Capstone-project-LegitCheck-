@@ -180,12 +180,20 @@ export function checkRules(text: string): RuleMatch[] {
     {
       indicator:
         "Vague company description with no contact info, headquarters, or verifiable details",
-      find: (t) => {
+            find: (t) => {
         const hasEmail = /@[\w.-]+\.\w+/i.test(t);
         const hasWebsite = /(www\.|https?:\/\/)/i.test(t);
-        const hasLegalEntity = /(inc\.?|llc|corp\.?|corporation|ltd\.?)/i.test(t);
+        const hasLegalEntity = /\b(inc|llc|corp|corporation|ltd)\b\.?/i.test(t);
+        // A city and state, or a street address, counts as an identifying detail
+        const hasLocation =
+          /\b[A-Z][a-z]+(?: [A-Z][a-z]+)*, [A-Z]{2}\b/.test(t) ||
+          /\b\d{1,5} [A-Za-z0-9.]+(?: [A-Za-z0-9.]+){0,3} (?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|way|highway|hwy)\b/i.test(
+            t
+          );
         // Based on what is missing, so there is no phrase to point to
-        return !hasEmail && !hasWebsite && !hasLegalEntity ? [] : null;
+        return !hasEmail && !hasWebsite && !hasLegalEntity && !hasLocation
+          ? []
+          : null;
       },
     },
   ];
