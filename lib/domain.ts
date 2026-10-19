@@ -22,8 +22,10 @@ const MAX_TEXT = 20000;
 export const MAX_DOMAINS = 5;
 const HOUR = 60 * 60 * 1000;
 
-// Domains whose age tells us nothing, or that are not real sites
+// Domains whose age tells us nothing about the sender: free email providers,
+// link shorteners, big platforms, job boards, and scheduling tools
 const SKIP_DOMAINS = new Set([
+  // Free email providers
   "gmail.com",
   "yahoo.com",
   "outlook.com",
@@ -38,6 +40,7 @@ const SKIP_DOMAINS = new Set([
   "protonmail.com",
   "yandex.com",
   "zoho.com",
+  // Link shorteners
   "bit.ly",
   "tinyurl.com",
   "t.co",
@@ -46,9 +49,32 @@ const SKIP_DOMAINS = new Set([
   "is.gd",
   "buff.ly",
   "rebrand.ly",
+  // Placeholder domains
   "example.com",
   "example.org",
   "example.net",
+  // Video and social platforms
+  "youtube.com",
+  "youtu.be",
+  "facebook.com",
+  "instagram.com",
+  "twitter.com",
+  "x.com",
+  "tiktok.com",
+  // Job boards
+  "indeed.com",
+  "linkedin.com",
+  "glassdoor.com",
+  "ziprecruiter.com",
+  "monster.com",
+  "simplyhired.com",
+  "careerbuilder.com",
+  "craigslist.org",
+  // Google, forms, and scheduling tools
+  "google.com",
+  "forms.gle",
+  "calendly.com",
+  "zoom.us",
 ]);
 
 // Second-level names used under country endings, like co.uk
@@ -149,7 +175,10 @@ export function extractDomains(text: string): {
     hits: byDomain.get(domain)!,
   }));
 
-  return { found: found.slice(0, MAX_DOMAINS), truncated: found.length > MAX_DOMAINS };
+  return {
+    found: found.slice(0, MAX_DOMAINS),
+    truncated: found.length > MAX_DOMAINS,
+  };
 }
 
 // ---- Looking up registration dates (RDAP) ----
