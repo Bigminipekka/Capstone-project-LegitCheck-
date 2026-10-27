@@ -1,31 +1,34 @@
 "use client";
-
+ 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-
+import { SCAM_TYPES, pickRuleScamType } from "@/lib/scamTypes";
+ 
 interface Hit {
   start: number;
   end: number;
 }
-
+ 
 interface FlaggedResult {
   indicator: string;
   weight: string;
   description: string;
   source: string;
   category: string;
+  scam_type?: string;
   hits?: Hit[];
 }
-
+ 
 interface AIAnalysis {
   concern_level: string;
   summary: string;
   observations: string[];
   recommended_actions?: string[];
   highlights?: Hit[];
+  scam_type?: string;
 }
-
+ 
 interface AnalysisResult {
   riskLevel: "Low" | "Medium" | "High";
   matchesFound: number;
@@ -35,7 +38,7 @@ interface AnalysisResult {
   aiAnalysis?: AIAnalysis | null;
   submittedText?: string;
 }
-
+ 
 interface DomainResult {
   domain: string;
   status: "ok" | "not_found" | "unavailable";
@@ -44,23 +47,23 @@ interface DomainResult {
   reason?: string;
   hits: Hit[];
 }
-
+ 
 interface DomainInfo {
   domains: DomainResult[];
   truncated: boolean;
 }
-
+ 
 type Mark = "High" | "Medium-High" | "Medium" | "AI" | "Domain";
-
+ 
 interface Segment {
   text: string;
   mark: Mark | null;
 }
-
+ 
 // Domains registered more recently than these many days are called out
 const NEW_DAYS = 30;
 const RECENT_DAYS = 180;
-
+ 
 const markStyles: { [key: string]: string } = {
   High: "bg-red-500/30 text-red-100",
   "Medium-High": "bg-orange-500/30 text-orange-100",
@@ -68,7 +71,7 @@ const markStyles: { [key: string]: string } = {
   AI: "bg-purple-500/30 text-purple-100",
   Domain: "bg-sky-500/30 text-sky-100",
 };
-
+ 
 const markStrength: { [key: string]: number } = {
   AI: 1,
   Domain: 2,
@@ -76,7 +79,7 @@ const markStrength: { [key: string]: number } = {
   "Medium-High": 4,
   High: 5,
 };
-
+ 
 // Split the submitted text into marked and unmarked pieces. Where marks
 // overlap, the more severe one wins and rule matches beat AI quotes.
 function buildSegments(
@@ -86,7 +89,7 @@ function buildSegments(
   domainHits: Hit[]
 ): Segment[] {
   const marks = new Array(text.length).fill(null) as (Mark | null)[];
-
+ 
   const paint = (hit: Hit, mark: Mark) => {
     const start = Math.max(0, hit.start);
     const end = Math.min(text.length, hit.end);
@@ -97,7 +100,7 @@ function buildSegments(
       }
     }
   };
-
+ 
   aiHits.forEach((hit) => paint(hit, "AI"));
   domainHits.forEach((hit) => paint(hit, "Domain"));
   flags.forEach((flag) => {
@@ -106,7 +109,7 @@ function buildSegments(
     else if (flag.weight === "Medium-High") mark = "Medium-High";
     (flag.hits || []).forEach((hit) => paint(hit, mark));
   });
-
+ 
   const segments: Segment[] = [];
   let start = 0;
   for (let i = 1; i <= text.length; i++) {
@@ -117,7 +120,7 @@ function buildSegments(
   }
   return segments;
 }
-
+ 
 function describeAge(days: number) {
   if (days < 1) return "today";
   if (days === 1) return "1 day ago";
@@ -125,7 +128,7 @@ function describeAge(days: number) {
   if (days < 730) return `${Math.round(days / 30.44)} months ago`;
   return `${Math.floor(days / 365)} years ago`;
 }
-
+ 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
@@ -134,7 +137,7 @@ function formatDate(iso: string) {
     timeZone: "UTC",
   });
 }
-
+ 
 function domainTone(d: DomainResult) {
   if (d.status === "ok" && d.ageDays !== undefined) {
     if (d.ageDays < NEW_DAYS) return "new";
@@ -144,7 +147,7 @@ function domainTone(d: DomainResult) {
   if (d.status === "not_found") return "missing";
   return "unknown";
 }
-
+ 
 const domainStyles: {
   [key: string]: { border: string; bg: string; label: string; text: string };
 } = {
@@ -179,19 +182,19 @@ const domainStyles: {
     text: "text-gray-400",
   },
 };
-
+ 
 export default function Results() {
   const router = useRouter();
   const [result, setResult] = useState(null as AnalysisResult | null);
   const [domainInfo, setDomainInfo] = useState(null as DomainInfo | null);
-
+ 
   useEffect(() => {
     const stored = sessionStorage.getItem("legitcheck_result");
     if (stored) {
       setResult(JSON.parse(stored));
     }
   }, []);
-
+ 
   // Look up domain registration dates after the results are on screen
   useEffect(() => {
     if (!result || !result.submittedText) return;
@@ -212,7 +215,7 @@ export default function Results() {
       cancelled = true;
     };
   }, [result]);
-
+ 
   if (!result) {
     return (
       <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center px-4">
@@ -228,27 +231,27 @@ export default function Results() {
       </main>
     );
   }
-
+ 
   // ---- Combine the two layers: the higher rating becomes the headline ----
   const rank: { [key: string]: number } = { Low: 0, Medium: 1, High: 2 };
   const levels = ["Low", "Medium", "High"] as const;
-
+ 
   const ruleLevel = result.riskLevel;
   const aiLevel =
     result.aiAnalysis && rank[result.aiAnalysis.concern_level] !== undefined
       ? result.aiAnalysis.concern_level
       : null;
-
+ 
   const overallRank = Math.max(rank[ruleLevel], aiLevel ? rank[aiLevel] : 0);
   const overallLevel = levels[overallRank];
-
+ 
   let drivenBy = "rules";
   if (aiLevel && rank[aiLevel] > rank[ruleLevel]) drivenBy = "ai";
   else if (aiLevel && rank[aiLevel] === rank[ruleLevel]) drivenBy = "both";
-
+ 
   // The layer with the higher rating is shown first. Ties keep rules on top.
   const aiFirst = drivenBy === "ai";
-
+ 
   const drivenByText =
     drivenBy === "ai"
       ? "Set by the AI review, which rated this higher than the rule-based engine."
@@ -257,7 +260,7 @@ export default function Results() {
       : aiLevel
       ? "Set by the rule-based engine, which rated this at least as high as the AI review."
       : "Set by the rule-based engine. The AI review was unavailable for this scan.";
-
+ 
   const riskColors = {
     High: {
       border: "border-red-800",
@@ -284,15 +287,15 @@ export default function Results() {
       advice: "No major red flags detected, but always use good judgment.",
     },
   };
-
+ 
   const colors = riskColors[overallLevel];
-
+ 
   const levelText: { [key: string]: string } = {
     High: "text-red-400",
     Medium: "text-yellow-400",
     Low: "text-green-400",
   };
-
+ 
   // The confidence number comes from the rule-based score, so it is only
   // shown when the rule-based engine agrees with the overall rating.
   const showConfidence = drivenBy !== "ai";
@@ -302,10 +305,10 @@ export default function Results() {
       : Math.min(98, 70 + result.totalScore * 5);
   const confidenceLabel =
     overallLevel === "Low" ? "Clean Scan Confidence" : "Scam Confidence";
-
+ 
   // ---- Recommended actions: fixed baseline + AI-suggested specifics ----
   const isEmail = result.contentType === "email";
-
+ 
   const baselineActions = isEmail
     ? [
         "Never click links or share passwords, SSNs, or card numbers from an unexpected email.",
@@ -315,22 +318,22 @@ export default function Results() {
         "Never send money or share your SSN or banking details to get a job.",
         "If you already shared information or paid, report it at reportfraud.ftc.gov.",
       ];
-
+ 
   const reportAction = isEmail
     ? "Report the email as phishing to your email provider, then delete it."
     : "Report this listing on the site where you found it.";
-
+ 
   const stopAction = isEmail
     ? "Do not reply, click any links, or open attachments."
     : "Do not apply, reply, or share personal information with this poster.";
-
+ 
   const standardActions =
     overallLevel === "Low"
       ? baselineActions
       : overallLevel === "High"
       ? [stopAction, reportAction, ...baselineActions]
       : [reportAction, ...baselineActions];
-
+ 
   // AI actions are only shown when the AI itself raised a concern
   const aiActions =
     aiLevel &&
@@ -339,7 +342,7 @@ export default function Results() {
     result.aiAnalysis.recommended_actions
       ? result.aiAnalysis.recommended_actions
       : [];
-
+ 
   const weightStyles: {
     [key: string]: { border: string; bg: string; text: string; badge: string };
   } = {
@@ -362,15 +365,15 @@ export default function Results() {
       badge: "bg-yellow-600",
     },
   };
-
+ 
   // ---- Highlighting: where in the submitted text each flag was found ----
   const submitted = result.submittedText || "";
-
+ 
   const aiHighlights =
     result.aiAnalysis && result.aiAnalysis.highlights
       ? result.aiAnalysis.highlights
       : [];
-
+ 
   // Domains that are new, or have no record, are marked in the text
   const domainHits: Hit[] = [];
   if (domainInfo) {
@@ -381,12 +384,12 @@ export default function Results() {
       }
     });
   }
-
+ 
   const segments = submitted
     ? buildSegments(submitted, result.flaggedResults, aiHighlights, domainHits)
     : [];
   const anyMarked = segments.some((segment) => segment.mark !== null);
-
+ 
   // The phrases that triggered one flag, shortened and without repeats
   const snippetsFor = (flag: FlaggedResult) => {
     const seen: string[] = [];
@@ -403,7 +406,7 @@ export default function Results() {
     });
     return out;
   };
-
+ 
   // ---- The result cards, built separately so their order can change ----
   const rulesCard = (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -415,7 +418,7 @@ export default function Results() {
           {ruleLevel}
         </span>
       </p>
-
+ 
       {result.flaggedResults.length === 0 ? (
         <p className="text-gray-400 text-sm">
           No red flags were detected in this posting based on our current rule set.
@@ -426,7 +429,7 @@ export default function Results() {
             const style = weightStyles[flag.weight] || weightStyles.Medium;
             const snippets = snippetsFor(flag);
             const hasHits = !!flag.hits && flag.hits.length > 0;
-
+ 
             return (
               <div
                 key={i}
@@ -448,7 +451,7 @@ export default function Results() {
                     <p className="text-xs text-gray-600 mt-1">
                       Source: {flag.source} • Weight: {flag.weight}
                     </p>
-
+ 
                     {submitted && (
                       <div className="mt-2">
                         {snippets.length > 0 ? (
@@ -492,7 +495,7 @@ export default function Results() {
       )}
     </div>
   );
-
+ 
   const aiCard = result.aiAnalysis ? (
     <div className="bg-gray-900 border border-purple-900 rounded-xl p-6">
       <p className="text-xs text-purple-400 font-semibold">AI ANALYSIS</p>
@@ -500,7 +503,7 @@ export default function Results() {
       <p className="text-xs text-gray-500 mb-4">
         Beyond keyword matching — an AI review for subtle manipulation tactics
       </p>
-
+ 
       <div className="flex items-center gap-2 mb-3">
         <span className="text-sm text-gray-400">Concern Level:</span>
         <span
@@ -511,9 +514,9 @@ export default function Results() {
           {result.aiAnalysis.concern_level}
         </span>
       </div>
-
+ 
       <p className="text-sm text-gray-300 mb-4">{result.aiAnalysis.summary}</p>
-
+ 
       {result.aiAnalysis.observations &&
         result.aiAnalysis.observations.length > 0 && (
           <ul className="text-sm text-gray-400 space-y-1.5 list-disc list-inside">
@@ -524,7 +527,7 @@ export default function Results() {
         )}
     </div>
   ) : null;
-
+ 
   const domainCard =
     domainInfo && domainInfo.domains.length > 0 ? (
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -539,7 +542,7 @@ export default function Results() {
           domain safe. This check is shown for context and does not change the
           risk rating.
         </p>
-
+ 
         <div className="space-y-3">
           {domainInfo.domains.map((d) => {
             const tone = domainTone(d);
@@ -573,7 +576,7 @@ export default function Results() {
             );
           })}
         </div>
-
+ 
         {domainInfo.truncated && (
           <p className="text-xs text-gray-400 mt-3">
             Only the first few domains in your text were checked.
@@ -581,7 +584,7 @@ export default function Results() {
         )}
       </div>
     ) : null;
-
+ 
   const highlightCard = submitted ? (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
       <p className="text-xs text-blue-400 font-semibold">WHERE WE FOUND IT</p>
@@ -594,7 +597,7 @@ export default function Results() {
         are not proof of a scam. Flags based on something missing have nothing
         to mark.
       </p>
-
+ 
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-xs text-gray-300">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded bg-red-500/40"></span>
@@ -617,7 +620,7 @@ export default function Results() {
           New or unregistered domain
         </span>
       </div>
-
+ 
       <div className="whitespace-pre-wrap break-words text-sm text-gray-300 leading-relaxed bg-gray-950 border border-gray-800 rounded-lg p-4 max-h-96 overflow-y-auto">
         {segments.map((segment, i) =>
           segment.mark ? (
@@ -632,7 +635,7 @@ export default function Results() {
           )
         )}
       </div>
-
+ 
       {!anyMarked && (
         <p className="text-xs text-gray-400 mt-3">
           Nothing in this text could be marked. That is expected when no flags
@@ -641,7 +644,57 @@ export default function Results() {
       )}
     </div>
   ) : null;
-
+ 
+  // ---- Scam type: what this looks like ----
+  // Rule-based type is used when the rules rated this above Low. Otherwise the
+  // AI review's type is used. Nothing is shown when the overall rating is Low.
+  const ruleTypeId =
+    ruleLevel !== "Low" ? pickRuleScamType(result.flaggedResults) : null;
+  const aiTypeRaw = result.aiAnalysis ? result.aiAnalysis.scam_type : undefined;
+  const aiTypeId =
+    aiLevel && aiLevel !== "Low" && aiTypeRaw && SCAM_TYPES[aiTypeRaw]
+      ? aiTypeRaw
+      : null;
+  const shownTypeId =
+    overallLevel === "Low" ? null : ruleTypeId || aiTypeId;
+  const typeInfo = shownTypeId ? SCAM_TYPES[shownTypeId] : null;
+  const typeFromRules = !!ruleTypeId;
+  const aiDisagrees = !!ruleTypeId && !!aiTypeId && aiTypeId !== ruleTypeId;
+ 
+  const typeCard = typeInfo ? (
+    <div className="bg-gray-900 border border-blue-900 rounded-xl p-6">
+      <p className="text-xs text-blue-400 font-semibold">WHAT THIS LOOKS LIKE</p>
+      <h2 className="text-xl font-bold mt-1">{typeInfo.label}</h2>
+      <p className="text-xs text-gray-400 mb-4">
+        {typeFromRules
+          ? "Based on the rules that matched."
+          : "Identified by the AI review, since no specific rule pointed to a type."}{" "}
+        This is a pattern match, not a verdict.
+      </p>
+ 
+      <p className="text-sm text-gray-200 mb-4">{typeInfo.summary}</p>
+ 
+      <div className="space-y-3 text-sm">
+        <div>
+          <p className="text-xs text-gray-400 font-semibold mb-1">
+            HOW THIS SCAM WORKS
+          </p>
+          <p className="text-gray-300 leading-relaxed">{typeInfo.howItWorks}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400 font-semibold mb-1">WHAT TO DO</p>
+          <p className="text-gray-300 leading-relaxed">{typeInfo.whatToDo}</p>
+        </div>
+      </div>
+ 
+      {aiDisagrees && aiTypeId && (
+        <p className="text-xs text-gray-400 mt-4 pt-3 border-t border-gray-800">
+          The AI review read this as: {SCAM_TYPES[aiTypeId].label}.
+        </p>
+      )}
+    </div>
+  ) : null;
+ 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
@@ -652,7 +705,7 @@ export default function Results() {
           </div>
           <span className="font-bold text-lg">LegitCheck</span>
         </Link>
-
+ 
         <nav className="hidden md:flex gap-6 text-sm text-gray-300">
           <Link href="/" className="hover:text-blue-400 transition-colors">
             Scanner
@@ -665,13 +718,13 @@ export default function Results() {
           </Link>
           <span>About API</span>
         </nav>
-
+ 
         <span className="flex items-center gap-1 text-xs text-green-400 border border-green-700 rounded-full px-3 py-1">
           <span className="w-2 h-2 bg-green-400 rounded-full"></span>
           SYSTEM ACTIVE
         </span>
       </header>
-
+ 
       {/* Content */}
       <div className="max-w-6xl w-full mx-auto mt-10 px-4 grid md:grid-cols-3 gap-6">
         {/* Left column */}
@@ -679,7 +732,7 @@ export default function Results() {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <p className="text-xs text-gray-500 font-semibold">DIAGNOSTIC RESULT</p>
             <h2 className="text-xl font-bold mt-1 mb-4">Analysis Finished</h2>
-
+ 
             <div className={`border ${colors.border} ${colors.bg} rounded-lg p-4 text-center`}>
               <p className={`text-xs ${colors.label} font-semibold tracking-wide`}>
                 OVERALL RISK EVALUATION
@@ -689,11 +742,11 @@ export default function Results() {
               </p>
               <p className={`text-xs ${colors.sub} mt-2`}>{colors.advice}</p>
             </div>
-
+ 
             <p className="text-xs text-gray-300 mt-3 leading-relaxed">
               {drivenByText}
             </p>
-
+ 
             <div className="mt-4 pt-3 border-t border-gray-800 space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Rule-based engine</span>
@@ -719,7 +772,7 @@ export default function Results() {
                 </div>
               )}
             </div>
-
+ 
             {overallLevel === "Low" && result.matchesFound > 0 && (
               <p className="text-xs text-gray-300 mt-3 leading-relaxed">
                 {result.matchesFound === 1
@@ -730,7 +783,7 @@ export default function Results() {
                 necessarily indicate a scam on their own.
               </p>
             )}
-
+ 
             <p className="text-xs text-gray-300 mt-4 pt-3 border-t border-gray-800 leading-relaxed">
               LegitCheck combines rule-based and AI analysis to catch as much
               as possible, but no detection system is perfect. A clean
@@ -738,10 +791,10 @@ export default function Results() {
               legitimacy. Always use independent judgment.
             </p>
           </div>
-
+ 
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <p className="font-semibold mb-3">Recommended Safety Actions</p>
-
+ 
             {overallLevel === "Low" && (
               <p className="text-sm text-gray-300 mb-4 leading-relaxed">
                 {isEmail
@@ -749,7 +802,7 @@ export default function Results() {
                   : "No major concerns were found, but still verify the company independently before sharing personal information."}
               </p>
             )}
-
+ 
             {aiActions.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs text-purple-400 font-semibold mb-2">
@@ -762,7 +815,7 @@ export default function Results() {
                 </ul>
               </div>
             )}
-
+ 
             <p className="text-xs text-gray-400 font-semibold mb-2">
               STANDARD ADVICE
             </p>
@@ -771,7 +824,7 @@ export default function Results() {
                 <li key={i}>{action}</li>
               ))}
             </ul>
-
+ 
             <button
               onClick={() =>
                 router.push(`/?mode=${result.contentType || "job_posting"}`)
@@ -782,20 +835,21 @@ export default function Results() {
             </button>
           </div>
         </div>
-
+ 
         {/* Right column: the higher-rated layer goes first */}
         <div className="md:col-span-2 space-y-6">
+          {typeCard}
           {aiFirst ? aiCard : rulesCard}
           {aiFirst ? rulesCard : aiCard}
           {domainCard}
         </div>
       </div>
-
+ 
       {/* Highlighted text */}
       {highlightCard && (
         <div className="max-w-6xl w-full mx-auto mt-6 px-4">{highlightCard}</div>
       )}
-
+ 
       {/* Footer */}
       <footer className="border-t border-gray-800 py-6 px-8 mt-10 flex justify-between text-xs text-gray-500">
         <span>© 2026 LegitCheck. Rule-based and AI-assisted fraud detection.</span>

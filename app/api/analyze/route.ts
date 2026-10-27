@@ -2,31 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { checkRules } from "@/lib/detection";
 import { checkEmailRules } from "@/lib/emailDetection";
-
+ 
 const weightValues: { [key: string]: number } = {
   High: 3,
   "Medium-High": 2,
   Medium: 1,
 };
-
+ 
 export async function POST(req: NextRequest) {
   const { text, type } = await req.json();
-
+ 
   if (!text || text.trim().length < 20) {
     return NextResponse.json(
       { error: "Please paste a longer message to analyze." },
       { status: 400 }
     );
   }
-
+ 
   const contentType = type === "email" ? "email" : "job_posting";
-
+ 
   // Get only the rules matching this content type
   const { data: rules, error } = await supabase
     .from("rules")
     .select("*")
     .eq("content_type", contentType);
-
+ 
   if (error) {
     console.error("Rules read error:", error.message);
     return NextResponse.json(
@@ -37,11 +37,11 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-
+ 
   // Run the correct detection logic based on type
   const matches =
     contentType === "email" ? checkEmailRules(text) : checkRules(text);
-
+ 
   const flaggedResults = matches
     .filter((m) => m.matched)
     .map((m) => {
@@ -52,19 +52,21 @@ export async function POST(req: NextRequest) {
         description: rule?.description || "",
         source: rule?.source || "",
         category: rule?.category || "",
+        scam_type: rule?.scam_type || "general",
         hits: m.hits,
       };
     });
-
+ 
+  // The score and rating do not use scam_type, so ratings are unchanged
   const totalScore = flaggedResults.reduce(
     (sum, r) => sum + (weightValues[r.weight] || 1),
     0
   );
-
+ 
   let riskLevel: "Low" | "Medium" | "High" = "Low";
   if (totalScore >= 6) riskLevel = "High";
   else if (totalScore >= 3) riskLevel = "Medium";
-
+ 
   return NextResponse.json({
     riskLevel,
     matchesFound: flaggedResults.length,
@@ -73,3 +75,4 @@ export async function POST(req: NextRequest) {
     contentType,
   });
 }
+ 
