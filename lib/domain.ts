@@ -3,12 +3,12 @@ export interface DomainHit {
   start: number;
   end: number;
 }
-
+ 
 export interface FoundDomain {
   domain: string;
   hits: DomainHit[];
 }
-
+ 
 export interface DomainResult {
   domain: string;
   status: "ok" | "not_found" | "unavailable";
@@ -17,11 +17,11 @@ export interface DomainResult {
   reason?: string;
   hits: DomainHit[];
 }
-
+ 
 const MAX_TEXT = 20000;
 export const MAX_DOMAINS = 5;
 const HOUR = 60 * 60 * 1000;
-
+ 
 // Domains whose age tells us nothing about the sender: free email providers,
 // link shorteners, big platforms, job boards, and scheduling tools
 const SKIP_DOMAINS = new Set([
@@ -76,7 +76,7 @@ const SKIP_DOMAINS = new Set([
   "calendly.com",
   "zoom.us",
 ]);
-
+ 
 // Second-level names used under country endings, like co.uk
 const SECOND_LEVEL = new Set([
   "co",
@@ -90,7 +90,7 @@ const SECOND_LEVEL = new Set([
   "ne",
   "go",
 ]);
-
+ 
 // A rough guess at the registrable part of a host name. There is no public
 // suffix list here, so unusual endings can be wrong.
 function registrable(host: string): string {
@@ -103,7 +103,7 @@ function registrable(host: string): string {
   }
   return labels.slice(-2).join(".");
 }
-
+ 
 function validDomain(domain: string): boolean {
   if (domain.length > 253) return false;
   const labels = domain.split(".");
@@ -113,10 +113,19 @@ function validDomain(domain: string): boolean {
   );
   return labelOk && /^[a-z]{2,24}$/.test(labels[labels.length - 1]);
 }
-
+ 
+// Government, school and military domains can only be registered by those
+// organizations, so their age says nothing useful and only adds noise.
+function isRestrictedDomain(domain: string): boolean {
+  return (
+    /(^|\.)(gov|edu|mil)(\.[a-z]{2})?$/.test(domain) ||
+    /\.ac\.[a-z]{2}$/.test(domain)
+  );
+}
+ 
 const BARE_ENDINGS =
   "com|net|org|io|co|info|biz|us|xyz|online|site|top|club|shop|app|dev|jobs|careers";
-
+ 
 export function extractDomains(text: string): {
   found: FoundDomain[];
   truncated: boolean;
@@ -124,28 +133,37 @@ export function extractDomains(text: string): {
   const source = text.slice(0, MAX_TEXT);
   const byDomain = new Map<string, DomainHit[]>();
   const order: string[] = [];
-
+ 
   const add = (host: string, start: number, end: number) => {
     const domain = registrable(host.replace(/\.+$/, ""));
     if (!validDomain(domain) || SKIP_DOMAINS.has(domain)) return;
+    if (isRestrictedDomain(domain)) return;
     if (!byDomain.has(domain)) {
       byDomain.set(domain, []);
       order.push(domain);
     }
     byDomain.get(domain)!.push({ start, end });
   };
-
+ 
   // 1. Email addresses (skipping ones that are clearly the recipient)
   for (const m of source.matchAll(
     /[A-Za-z0-9._%+-]+@((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,24})/g
   )) {
     const at = m.index ?? 0;
-    const before = source.slice(Math.max(0, at - 30), at);
-    if (/(sent to|at email|to me at|addressed to)/i.test(before)) continue;
+    const before = source.slice(Math.max(0, at - 80), at);
+    if (
+      /(sent to|was sent|intended for|at email|to me at|addressed to|your email( address)?|registered (to|with)|associated with|unsubscribe)/i.test(
+        before
+      )
+    )
+      continue;
+    // Skip addresses on a To:, Cc: or Bcc: line
+    const lineStart = source.lastIndexOf("\n", at) + 1;
+    if (/^\s*(to|cc|bcc)\s*:/i.test(source.slice(lineStart, at))) continue;
     const end = at + m[0].length;
     add(m[1], end - m[1].length, end);
   }
-
+ 
   // 2. Links that start with http:// or https://
   for (const m of source.matchAll(
     /\bhttps?:\/\/((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,24})/gi
@@ -153,7 +171,7 @@ export function extractDomains(text: string): {
     const start = (m.index ?? 0) + m[0].length - m[1].length;
     add(m[1], start, start + m[1].length);
   }
-
+ 
   // 3. Links that start with www.
   for (const m of source.matchAll(
     /\bwww\.((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,24})/gi
@@ -161,28 +179,31 @@ export function extractDomains(text: string): {
     const start = (m.index ?? 0) + m[0].length - m[1].length;
     add(m[1], start, start + m[1].length);
   }
-
+ 
   // 4. Bare domains with a common ending, like apply-now-jobs.com
   for (const m of source.matchAll(
     new RegExp(`\\b((?:[A-Za-z0-9-]+\\.)+(?:${BARE_ENDINGS}))\\b`, "gi")
   )) {
     const start = m.index ?? 0;
+    // Domains inside an email address were already handled in step 1,
+    // including the ones skipped because they are the recipient
+    if (start > 0 && source[start - 1] === "@") continue;
     add(m[1], start, start + m[1].length);
   }
-
+ 
   const found = order.map((domain) => ({
     domain,
     hits: byDomain.get(domain)!,
   }));
-
+ 
   return {
     found: found.slice(0, MAX_DOMAINS),
     truncated: found.length > MAX_DOMAINS,
   };
 }
-
+ 
 // ---- Looking up registration dates (RDAP) ----
-
+ 
 async function fetchWithTimeout(url: string, ms: number, accept: string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -196,10 +217,10 @@ async function fetchWithTimeout(url: string, ms: number, accept: string) {
     clearTimeout(timer);
   }
 }
-
+ 
 let bootstrap = null as { at: number; servers: Map<string, string> } | null;
 let inflight = null as Promise<Map<string, string> | null> | null;
-
+ 
 // IANA publishes which lookup service handles each domain ending
 async function loadServers(): Promise<Map<string, string> | null> {
   try {
@@ -223,7 +244,7 @@ async function loadServers(): Promise<Map<string, string> | null> {
     return null;
   }
 }
-
+ 
 async function getServers(): Promise<Map<string, string> | null> {
   if (bootstrap && Date.now() - bootstrap.at < 24 * HOUR) {
     return bootstrap.servers;
@@ -235,9 +256,9 @@ async function getServers(): Promise<Map<string, string> | null> {
   }
   return inflight;
 }
-
+ 
 type Lookup = Omit<DomainResult, "hits">;
-
+ 
 async function rdapLookup(domain: string): Promise<Lookup> {
   const servers = await getServers();
   if (!servers) {
@@ -247,7 +268,7 @@ async function rdapLookup(domain: string): Promise<Lookup> {
       reason: "The registry directory could not be reached.",
     };
   }
-
+ 
   const ending = domain.split(".").pop() || "";
   const base = servers.get(ending);
   if (!base) {
@@ -257,7 +278,7 @@ async function rdapLookup(domain: string): Promise<Lookup> {
       reason: "This kind of domain has no public lookup service.",
     };
   }
-
+ 
   try {
     const res = await fetchWithTimeout(
       `${base}domain/${encodeURIComponent(domain)}`,
@@ -279,7 +300,7 @@ async function rdapLookup(domain: string): Promise<Lookup> {
         reason: "The lookup service did not answer.",
       };
     }
-
+ 
     const json = (await res.json()) as {
       events?: { eventAction?: string; eventDate?: string }[];
     };
@@ -296,7 +317,7 @@ async function rdapLookup(domain: string): Promise<Lookup> {
         reason: "No registration date was published for this domain.",
       };
     }
-
+ 
     const ageDays = Math.max(
       0,
       Math.floor((Date.now() - date.getTime()) / 86400000)
@@ -315,13 +336,13 @@ async function rdapLookup(domain: string): Promise<Lookup> {
     };
   }
 }
-
+ 
 const cache = new Map<string, { at: number; result: Lookup }>();
-
+ 
 async function lookupOne(domain: string): Promise<Lookup> {
   const cached = cache.get(domain);
   if (cached && Date.now() - cached.at < HOUR) return cached.result;
-
+ 
   const result = await rdapLookup(domain);
   // Only remember real answers, not failures
   if (result.status !== "unavailable") {
@@ -330,7 +351,7 @@ async function lookupOne(domain: string): Promise<Lookup> {
   }
   return result;
 }
-
+ 
 export async function checkDomains(
   text: string
 ): Promise<{ domains: DomainResult[]; truncated: boolean }> {

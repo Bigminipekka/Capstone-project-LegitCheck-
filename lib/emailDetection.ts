@@ -1,11 +1,11 @@
 import { findAll, findWithin, matchAny, Hit } from "@/lib/matching";
-
+ 
 export interface RuleMatch {
   indicator: string;
   matched: boolean;
   hits: Hit[];
 }
-
+ 
 export function checkEmailRules(text: string): RuleMatch[] {
   const checks: { indicator: string; find: (t: string) => Hit[] | null }[] = [
     {
@@ -17,9 +17,17 @@ export function checkEmailRules(text: string): RuleMatch[] {
           /@(gmail|yahoo|outlook|hotmail|aol)\.com/gi
         )) {
           const at = match.index ?? 0;
-          const context = t.slice(Math.max(0, at - 30), at);
+          const context = t.slice(Math.max(0, at - 80), at);
           // Skip if this email is clearly the recipient, not the sender
-          if (/(sent to|at email|to me at|addressed to)/i.test(context)) continue;
+          if (
+            /(sent to|was sent|intended for|at email|to me at|addressed to|your email( address)?|registered (to|with)|associated with|unsubscribe)/i.test(
+              context
+            )
+          )
+            continue;
+          // Skip addresses on a To:, Cc: or Bcc: line
+          const lineStart = t.lastIndexOf("\n", at) + 1;
+          if (/^\s*(to|cc|bcc)\s*:/i.test(t.slice(lineStart, at))) continue;
           let start = at;
           while (start > 0 && /[\w.+-]/.test(t[start - 1])) start--;
           hits.push({ start, end: at + match[0].length });
@@ -44,7 +52,7 @@ export function checkEmailRules(text: string): RuleMatch[] {
       find: (t) =>
         matchAny(
           [
-            /(confirm|provide|enter|verify).{0,30}(password|social security|ssn|card number|account number|pin)/i,
+            /\b(confirm|provide|enter|verify|send|reply with|share|submit)\b.{0,40}\b(password|social security|ssn|card number|credit card|debit card|account number|routing number|pin|date of birth|dob|cvv|login credentials)\b/i,
           ],
           t
         ),
@@ -140,7 +148,7 @@ export function checkEmailRules(text: string): RuleMatch[] {
         ),
     },
   ];
-
+ 
   return checks.map((check) => {
     const hits = check.find(text);
     return {
