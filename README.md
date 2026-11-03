@@ -1,5 +1,5 @@
 # LegitCheck
-
+Live demo: https://legitcheck-tau.vercel.app 
 LegitCheck scans job postings and emails for signs of a scam. Paste text or upload a screenshot, and two layers review it: a rule engine built from FTC, BBB and IC3 guidance, and an AI review. The site shows one overall risk rating, which is the higher of the two layers, with an explanation and recommended safety actions.
 
 Capstone project, CYBR 498, Christopher Newport University. Author: Cliff Wetherbee.
