@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { checkRules } from "@/lib/detection";
 import { checkEmailRules } from "@/lib/emailDetection";
+import { rateLimit, MAX_TEXT_CHARS } from "@/lib/rateLimit";
  
 const weightValues: { [key: string]: number } = {
   High: 3,
@@ -10,7 +11,19 @@ const weightValues: { [key: string]: number } = {
 };
  
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "analyze", 30, 10 * 60 * 1000);
+  if (limited) return limited;
+ 
   const { text, type } = await req.json();
+ 
+  if (typeof text === "string" && text.length > MAX_TEXT_CHARS) {
+    return NextResponse.json(
+      {
+        error: `That text is too long. The limit is ${MAX_TEXT_CHARS.toLocaleString()} characters.`,
+      },
+      { status: 400 }
+    );
+  }
  
   if (!text || text.trim().length < 20) {
     return NextResponse.json(
