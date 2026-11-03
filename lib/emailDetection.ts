@@ -52,7 +52,7 @@ export function checkEmailRules(text: string): RuleMatch[] {
       find: (t) =>
         matchAny(
           [
-            /\b(confirm|provide|enter|verify|send|reply with|share|submit)\b.{0,40}\b(password|social security|ssn|card number|credit card|debit card|account number|routing number|pin|date of birth|dob|cvv|login credentials)\b/i,
+            /\b(confirm(s|ing)?|provid(e|ing)|enter(ing)?|verify(ing)?|send(ing)?|reply with|shar(e|ing)|submit(ting)?)\b.{0,40}\b(password|social security|ssn|card number|credit card|debit card|account number|routing number|pin|date of birth|dob|cvv|login credentials)\b/i,
           ],
           t
         ),

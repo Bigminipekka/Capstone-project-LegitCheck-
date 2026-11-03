@@ -58,7 +58,7 @@ export function checkRules(text: string): RuleMatch[] {
             [
               /(bank account|social security|ssn|routing number).{0,40}(verif|setup|submit|provide)/i,
               /submit (your )?(ssn|social security)/i,
-              /\b(send|provide|submit|share|email|upload|give|enter|confirm|supply|text)\b[^.\n]{0,30}\b(your|us)\s+(own\s+)?(ssn|social security( number)?|date of birth|dob|bank (account|details|info|information|login|statement)|routing number|account number)|\b(upload|send|email|submit)\b[^.\n]{0,30}\b(photo|picture|scan|copy) of your (id|license|passport)/i,
+              /\b(send|provide|submit|share|email|upload|give|enter|confirm|supply|text)\b[^.\n]{0,50}\b(your|us)\s+(own\s+)?(ssn|social security( number)?|date of birth|dob|bank (account|details|info|information|login|statement)|routing number|account number)|\b(upload|send|email|submit)\b[^.\n]{0,30}\b(photo|picture|scan|copy) of your (driver'?s\s+)?(id|licen[sc]e|passport)/i,
               /\b(ssn|social security number|date of birth|bank (account )?(details|info|information|number)|routing number|account number)\b.{0,50}\b(is required|are required|required to|needed to|to (get started|begin|start|onboard|set ?up|process|complete|verify|finali[sz]e)|for (onboarding|verification|direct deposit|payroll))/i,
             ],
             t

@@ -1,39 +1,92 @@
 "use client";
-
+ 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { guessContentType, ContentKind } from "@/lib/typeCheck";
-
+ 
 interface Stats {
   jobCount: number;
   emailCount: number;
   jobAvgMs: number;
   emailAvgMs: number;
 }
-
+ 
 interface Shot {
   id: number;
   url: string;
   name: string;
 }
-
+ 
 // Shows "—" when there are no scans of that type yet
 function formatSeconds(ms: number) {
   return ms > 0 ? (ms / 1000).toFixed(1) + "s" : "—";
 }
-
+ 
 function kindName(kind: ContentKind) {
   return kind === "email" ? "email" : "job posting";
 }
-
+ 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-
+ 
+// Made-up sample text for the Try an example buttons
+const EXAMPLES = {
+  job_posting: {
+    scam: `Remote Customer Support Assistant, $28/hr, flexible hours
+ 
+We are a fast-growing international company looking for remote assistants to start this week. No experience needed, full training provided.
+ 
+Duties: answer customer messages, process orders, and help our team with payments.
+ 
+How to apply: this position is fully remote and the hiring is done over Telegram. Message our recruiter Daniel at @GlobalTalentHR to start your interview. You will be hired the same day.
+ 
+After you are hired, we will send you a check to buy your home office equipment from our approved vendor. Deposit the check, order your equipment, and send the remaining balance to our vendor through Zelle. Your first paycheck will include a reimbursement.
+ 
+Please also send a photo of your driver's license and your bank account details so we can set up direct deposit.`,
+    legit: `Medical Receptionist, Example Health Clinic, Norfolk, VA
+ 
+Example Health Clinic is hiring a full-time medical receptionist at our Norfolk, Virginia office.
+ 
+Responsibilities include greeting patients, scheduling appointments, verifying insurance information at check-in, and answering phones.
+ 
+Requirements: high school diploma, one year of office experience, and the ability to pass a background check after a conditional offer.
+ 
+Pay: $17 to $20 per hour depending on experience. Benefits include health insurance and paid time off.
+ 
+To apply, submit your resume through the careers page at www.example.com/careers. Interviews are held in person at our office.`,
+  },
+  email: {
+    scam: `From: Example Bank Security <security-alert@examplebank-support.com>
+Subject: Action required: your account has been suspended
+ 
+Dear Customer,
+ 
+We noticed unauthorized activity on your account and it has been suspended. To restore access, verify your account immediately by confirming your password and card number at the link below:
+ 
+http://examplebank-verify.com/login
+ 
+If you do not respond within 24 hours, your account will be closed.
+ 
+Example Bank Security Team`,
+    legit: `From: Example Learning <no-reply@learn.example.com>
+Subject: Your certificate is ready
+ 
+Hi Alex,
+ 
+Congratulations on completing Intro to Spreadsheets. Your certificate is ready to view in your account at https://learn.example.com/certificates. No further action is needed.
+ 
+You are receiving this email because you enrolled in this course. You can manage your email preferences or unsubscribe at any time from your account settings.
+ 
+The Example Learning Team`,
+  },
+};
+ 
+ 
 function HomeContent() {
   const searchParams = useSearchParams();
   const initialMode =
     searchParams.get("mode") === "email" ? "email" : "job_posting";
-
+ 
   const [jobPosting, setJobPosting] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -48,7 +101,7 @@ function HomeContent() {
   const shotsRef = useRef([] as Shot[]);
   const nextShotId = useRef(1);
   const router = useRouter();
-
+ 
   // Load the live scan totals each time the homepage opens
   useEffect(() => {
     fetch("/api/stats")
@@ -58,18 +111,18 @@ function HomeContent() {
       })
       .catch(() => {});
   }, []);
-
+ 
   // Keep a copy of the screenshot list so we can free the images on exit
   useEffect(() => {
     shotsRef.current = shots;
   }, [shots]);
-
+ 
   useEffect(() => {
     return () => {
       shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url));
     };
   }, []);
-
+ 
   // Close the enlarged screenshot with the Escape key
   useEffect(() => {
     if (!viewing) return;
@@ -79,12 +132,19 @@ function HomeContent() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [viewing]);
-
+ 
   const changeMode = (newMode: "job_posting" | "email") => {
     setMode(newMode);
     setMismatch(null);
   };
-
+ 
+  // Fill the text box with a made-up sample for the current mode
+  const loadExample = (kind: "scam" | "legit") => {
+    setJobPosting(EXAMPLES[mode][kind]);
+    setMismatch(null);
+    setErrorMsg("");
+  };
+ 
   const removeShot = (id: number) => {
     setShots((prev) => {
       const target = prev.find((s) => s.id === id);
@@ -93,12 +153,12 @@ function HomeContent() {
     });
     setViewing((v) => (v && v.id === id ? null : v));
   };
-
+ 
   // Read text out of one or more screenshots and add it to the text box
   const readImages = async (files: File[]) => {
     setErrorMsg("");
     setMismatch(null);
-
+ 
     const images = files.filter((f) => f.type.startsWith("image/"));
     if (images.length === 0) {
       setErrorMsg("Please choose an image file (PNG, JPG, or WebP).");
@@ -108,12 +168,12 @@ function HomeContent() {
       setErrorMsg("Each image must be under 10 MB.");
       return;
     }
-
+ 
     setOcrBusy(true);
     try {
       const { createWorker } = await import("tesseract.js");
       let currentImage = 1;
-
+ 
       const worker = await createWorker("eng", 1, {
         logger: (m: { status: string; progress: number }) => {
           if (m.status === "recognizing text") {
@@ -127,7 +187,7 @@ function HomeContent() {
           }
         },
       });
-
+ 
       const pieces: string[] = [];
       try {
         for (let i = 0; i < images.length; i++) {
@@ -139,14 +199,14 @@ function HomeContent() {
       } finally {
         await worker.terminate();
       }
-
+ 
       if (pieces.length === 0) {
         setErrorMsg(
           "No readable text was found in the image. Try a clearer or larger screenshot, or paste the text instead."
         );
         return;
       }
-
+ 
       // Keep the screenshots on the page so they can be compared with the text
       const newShots: Shot[] = images.map((file) => ({
         id: nextShotId.current++,
@@ -154,7 +214,7 @@ function HomeContent() {
         name: file.name || "Pasted screenshot",
       }));
       setShots((prev) => [...prev, ...newShots]);
-
+ 
       setJobPosting(
         (prev) =>
           (prev.trim() ? prev.trimEnd() + "\n\n" : "") + pieces.join("\n\n")
@@ -167,7 +227,7 @@ function HomeContent() {
       setOcrStatus("");
     }
   };
-
+ 
   // Returns true if the clipboard held an image (so normal pasting is skipped)
   const handleClipboard = (clipboard: DataTransfer): boolean => {
     const imageFiles: File[] = [];
@@ -181,15 +241,15 @@ function HomeContent() {
     readImages(imageFiles);
     return true;
   };
-
+ 
   const handleSubmit = async (skipTypeCheck: boolean) => {
     setErrorMsg("");
-
+ 
     if (jobPosting.trim().length < 20) {
       setErrorMsg("Please paste a longer message to analyze.");
       return;
     }
-
+ 
     // If the text clearly looks like the other type, ask before scanning
     if (!skipTypeCheck) {
       const guess = guessContentType(jobPosting);
@@ -199,10 +259,10 @@ function HomeContent() {
       }
     }
     setMismatch(null);
-
+ 
     setLoading(true);
     const startTime = performance.now();
-
+ 
     try {
       // Run the rule-based engine and the AI layer at the same time
       const [ruleRes, aiRes] = await Promise.all([
@@ -217,27 +277,27 @@ function HomeContent() {
           body: JSON.stringify({ text: jobPosting, type: mode }),
         }),
       ]);
-
+ 
       const ruleData = await ruleRes.json();
-
+ 
       if (!ruleRes.ok) {
         setErrorMsg(ruleData.error || "Something went wrong. Please try again.");
         setLoading(false);
         return;
       }
-
+ 
       // AI layer is a bonus — if it fails, we still show the core results
       let aiData = null;
       if (aiRes.ok) {
         aiData = await aiRes.json();
       }
-
+ 
             const combined = {
         ...ruleData,
         aiAnalysis: aiData,
         submittedText: jobPosting,
       };
-
+ 
       // Record the scan count and timing (no text is sent). If this fails,
       // the scan itself is unaffected.
       fetch("/api/stats", {
@@ -249,7 +309,7 @@ function HomeContent() {
         }),
         keepalive: true,
       }).catch(() => {});
-
+ 
       sessionStorage.setItem("legitcheck_result", JSON.stringify(combined));
       router.push("/results");
     } catch (err) {
@@ -257,7 +317,7 @@ function HomeContent() {
       setLoading(false);
     }
   };
-
+ 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
@@ -268,7 +328,7 @@ function HomeContent() {
           </div>
           <span className="font-bold text-lg">LegitCheck</span>
         </Link>
-
+ 
         <nav className="hidden md:flex gap-6 text-sm text-gray-300">
           <span className="text-blue-400 font-medium">Scanner</span>
           <Link href="/database" className="hover:text-blue-400 transition-colors">
@@ -279,13 +339,13 @@ function HomeContent() {
           </Link>
           <span>About API</span>
         </nav>
-
+ 
         <span className="flex items-center gap-1 text-xs text-green-400 border border-green-700 rounded-full px-3 py-1">
           <span className="w-2 h-2 bg-green-400 rounded-full"></span>
           SYSTEM ACTIVE
         </span>
       </header>
-
+ 
       {/* Hero */}
       <div className="text-center mt-12 px-4">
         <span className="text-xs text-blue-400 font-semibold tracking-wide">
@@ -301,7 +361,7 @@ function HomeContent() {
           patterns.
         </p>
       </div>
-
+ 
       {/* Input Card */}
       <div className="max-w-3xl w-full mx-auto mt-10 bg-gray-900 border border-gray-800 rounded-xl p-6">
         <div className="flex gap-2 mb-1">
@@ -330,7 +390,7 @@ function HomeContent() {
           Choose Email for messages you received, and Job Posting for
           listings.
         </p>
-
+ 
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-300">
             {mode === "email" ? "EMAIL CONTENT" : "JOB DESCRIPTION / POSTING TEXT"}
@@ -339,7 +399,7 @@ function HomeContent() {
             Paste text, or paste or upload a screenshot
           </span>
         </div>
-
+ 
         <textarea
           value={jobPosting}
           onChange={(e) => {
@@ -356,7 +416,31 @@ function HomeContent() {
           }
           className="w-full h-48 p-4 rounded-lg bg-gray-950 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
         />
-
+ 
+        {/* Example text */}
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <span className="text-xs text-gray-400">Try an example:</span>
+          <button
+            type="button"
+            onClick={() => loadExample("scam")}
+            disabled={loading || ocrBusy}
+            className="px-3 py-1 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 rounded-lg text-xs font-semibold transition-colors"
+          >
+            Sample scam {mode === "email" ? "email" : "posting"}
+          </button>
+          <button
+            type="button"
+            onClick={() => loadExample("legit")}
+            disabled={loading || ocrBusy}
+            className="px-3 py-1 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 rounded-lg text-xs font-semibold transition-colors"
+          >
+            Sample legitimate {mode === "email" ? "email" : "posting"}
+          </button>
+          <span className="text-xs text-gray-500">
+            Made-up text for demonstration. This replaces what is in the box.
+          </span>
+        </div>
+ 
         {/* Screenshot upload */}
         <div className="flex flex-wrap items-center gap-3 mt-3">
           <input
@@ -385,7 +469,7 @@ function HomeContent() {
             </span>
           )}
         </div>
-
+ 
         {/* Screenshot thumbnails */}
         {shots.length > 0 && (
           <div className="mt-3">
@@ -425,7 +509,7 @@ function HomeContent() {
             </p>
           </div>
         )}
-
+ 
         <p className="text-xs text-gray-500 mt-2 leading-relaxed">
           Screenshots are read in your browser. The extracted text appears
           above so you can check it before scanning, and your screenshots
@@ -434,7 +518,7 @@ function HomeContent() {
             ? " Job postings are often longer than one screen, so add more than one screenshot, in order, to capture the whole posting."
             : ""}
         </p>
-
+ 
         {/* Wrong-mode notice */}
         {mismatch && (
           <div className="mt-4 border border-yellow-800 bg-yellow-950/30 rounded-lg p-4">
@@ -462,9 +546,9 @@ function HomeContent() {
             </div>
           </div>
         )}
-
+ 
         {errorMsg && <p className="text-red-400 text-sm mt-2">{errorMsg}</p>}
-
+ 
         <div className="flex justify-between items-center mt-4">
           <span className="text-xs text-gray-500 flex items-center gap-1">
             🛡️ Your text is not saved. The AI review is processed by a third
@@ -473,7 +557,7 @@ function HomeContent() {
               Details
             </Link>
           </span>
-
+ 
           <button
             onClick={() => handleSubmit(false)}
             disabled={loading || ocrBusy}
@@ -508,7 +592,7 @@ function HomeContent() {
           </button>
         </div>
       </div>
-
+ 
       {/* Live stats */}
       <div className="max-w-3xl w-full mx-auto mt-10 mb-16 grid grid-cols-2 gap-4">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
@@ -536,7 +620,7 @@ function HomeContent() {
           </p>
         </div>
       </div>
-
+ 
       {/* Footer */}
       <footer className="border-t border-gray-800 py-6 px-8 flex justify-between text-xs text-gray-500">
         <span>© 2026 LegitCheck. Rule-based and AI-assisted fraud detection.</span>
@@ -550,7 +634,7 @@ function HomeContent() {
           <span>🔒 SSL Encrypted</span>
         </div>
       </footer>
-
+ 
       {/* Enlarged screenshot */}
       {viewing && (
         <div
@@ -582,7 +666,7 @@ function HomeContent() {
     </main>
   );
 }
-
+ 
 export default function Home() {
   return (
     <Suspense fallback={null}>
