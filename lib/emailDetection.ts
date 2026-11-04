@@ -1,4 +1,4 @@
-import { findAll, findWithin, matchAny, Hit } from "@/lib/matching";
+import { findAll, findWithin, matchAny, Hit } from "./matching";
  
 export interface RuleMatch {
   indicator: string;
@@ -135,6 +135,70 @@ export function checkEmailRules(text: string): RuleMatch[] {
         // Mark just the agency name and the payment method inside the match
         return [...findWithin(spans, agency, t), ...findWithin(spans, method, t)];
       },
+    },
+    {
+      indicator: "Claims a package delivery problem and asks you to pay or update details",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(package|parcel|shipment|delivery)\b[\s\S]{0,80}\b(could not be|cannot be|can't be|couldn't be|unable to be|failed|on hold|undeliverable|incomplete address|unpaid|problem|issue)\b[\s\S]{0,150}\b(pay|fee|\$\s?\d|update (your )?(address|payment|billing)|confirm (your )?(address|details|information))/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Claims an unpaid toll, ticket or fine and pushes you to pay online",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(unpaid|outstanding|overdue|past[- ]due|owe)\b[\s\S]{0,40}\b(tolls?|traffic (ticket|fine|violation)|parking (ticket|violation)|citation)\b[\s\S]{0,150}\b(pay|link|click|tap|late fee|penalt\w+)/i,
+            /\b(tolls?|traffic (ticket|fine|violation)|parking (ticket|violation))\b[\s\S]{0,60}\b(unpaid|outstanding|overdue|past[- ]due)\b[\s\S]{0,150}\b(pay|link|click|tap|late fee|penalt\w+)/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Threatens arrest or legal action unless you pay or respond right away",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(arrest(ed)?|warrant|jail|prison|lawsuit|legal action|prosecut\w+|deport\w*|seiz\w+)\b[\s\S]{0,120}\b(unless|if you (do not|don't|fail to)|until)\b[\s\S]{0,80}\b(pay|payment|fine|fee|call|respond)/i,
+            /\b(pay|payment|fine|fee|call)\b[\s\S]{0,60}\b(immediately|today|now|within \d+ (hours|days))\b[\s\S]{0,60}\b(or|otherwise)\b[\s\S]{0,60}\b(arrest\w*|warrant|jail|legal action|lawsuit|prosecut\w+|deport\w*)/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Says your Social Security number is suspended or linked to a crime",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(social security( number)?|ssn)\b[\s\S]{0,40}\b(suspended|suspend|blocked|deactivated|linked to (a )?(crime|criminal|fraud|drug|money laundering))/i,
+            /\b(suspend\w*|block\w*|deactivat\w*)\b[\s\S]{0,30}\byour (social security( number)?|ssn)\b/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Government agency contacting you with a link to click",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(irs|internal revenue service|social security administration|ssa)\b[\s\S]{0,200}\b(click|tap|follow|visit)\b[\s\S]{0,40}\b(link|here|below)\b/i,
+            /\b(click|tap|follow|visit)\b[\s\S]{0,40}\b(link|here|below)\b[\s\S]{0,200}\b(irs|internal revenue service|social security administration|ssa)\b/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Unexpected overdue invoice or bill with an attachment or link",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(overdue|unpaid|outstanding|past[- ]due)\s+(invoice|bill)\b[\s\S]{0,200}\b(attach\w*|click|link|open|view|download)\b/i,
+          ],
+          t
+        ),
     },
     {
       indicator:

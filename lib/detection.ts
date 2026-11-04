@@ -1,4 +1,4 @@
-import { findAll, matchAny, Hit } from "@/lib/matching";
+import { findAll, matchAny, Hit } from "./matching";
  
 export interface RuleMatch {
   indicator: string;
@@ -224,6 +224,53 @@ export function checkRules(text: string): RuleMatch[] {
         matchAny(
           [
             /(we found your resume|you (have been|were) selected|came across your profile|reaching out to you regarding|noticed your (profile|resume))/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator:
+        "Charges a fee for job placement, certification or a guaranteed government job",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(federal|government|postal|usps|post office)\s+jobs?\b[\s\S]{0,80}(?<!\bno\s)(?<!\bwithout\s)(\bfor a fee\b|\b(exam|application|processing|registration|placement) fees?\b|\bpay (a |an |the )?\$\s?\d[\d,]*|\bguarantee[d]?\b)/i,
+            /(?<!\bno\s)(?<!\bwithout\s)\b(job )?placement (fee|charge)\b/i,
+            /(?<!\bno\s)(?<!\bwithout\s)\b(certification|job (list|listing|directory|database)|guarantee)s?\s+(fee|cost)\b/i,
+            /\b(pay|buy|purchase)\b[^.\n]{0,40}\b(certification|job (list|listing|directory|database))\b[^.\n]{0,40}\b(to|before|in order to)\b[^.\n]{0,20}\b(start|apply|get hired|be hired|qualify)/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Mystery shopper job that involves a check or sending money",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(mystery|secret) shopp(er|ing)\b[\s\S]{0,250}\b(check|cheque|money order|cashier'?s|western union|moneygram|gift cards?|wire)\b/i,
+            /\b(check|cheque|money order|cashier'?s)\b[\s\S]{0,250}\b(mystery|secret) shopp(er|ing)\b/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Asks you to buy products or inventory that you then resell",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(buy|purchase|order)\b[\s\S]{0,40}\b(products?|inventory|merchandise|luxury (goods|items|products)|starter (kit|package))\b[\s\S]{0,60}\b(to )?(resell|re-sell|sell (on|through|for))/i,
+            /\bresell\w*\b[\s\S]{0,60}\byou (must|will need to|need to|have to) (buy|purchase|pay)\b/i,
+          ],
+          t
+        ),
+    },
+    {
+      indicator: "Promises large pay for very little work or time",
+      find: (t) =>
+        matchAny(
+          [
+            /\b(earn|make)\b[^.\n]{0,15}\$\s?\d[\d,]*\s?(\/|per|a|each)\s?(day|week)\b[^.\n]{0,80}\b(few (hours|minutes)|little (work|effort)|minimal (work|effort)|no (skills|experience)|simple)\b/i,
+            /\b(little|minimal) (work|effort)\b[^.\n]{0,40}\b(earn|make|income|pay|money)\b/i,
           ],
           t
         ),
