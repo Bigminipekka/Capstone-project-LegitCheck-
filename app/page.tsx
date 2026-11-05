@@ -10,6 +10,8 @@ interface Stats {
   emailCount: number;
   jobAvgMs: number;
   emailAvgMs: number;
+  textCount: number;
+  textAvgMs: number;
 }
  
 interface Shot {
@@ -320,8 +322,7 @@ function HomeContent() {
  
       // Record the scan count and timing (no text is sent). If this fails,
       // the scan itself is unaffected.
-      // Text messages are not part of the saved scan totals yet
-      if (mode !== "text_message") fetch("/api/stats", {
+      fetch("/api/stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -647,7 +648,7 @@ function HomeContent() {
       </div>
  
       {/* Live stats */}
-      <div className="max-w-3xl w-full mx-auto mt-10 mb-16 grid grid-cols-2 gap-4">
+      <div className="max-w-3xl w-full mx-auto mt-10 mb-16 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <p className="text-2xl font-bold">
             {stats ? stats.jobCount.toLocaleString() : "—"}
@@ -669,6 +670,18 @@ function HomeContent() {
             Average scan time:{" "}
             <span className="font-semibold text-white">
               {formatSeconds(stats ? stats.emailAvgMs : 0)}
+            </span>
+          </p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <p className="text-2xl font-bold">
+            {stats ? stats.textCount.toLocaleString() : "—"}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Text messages scanned</p>
+          <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-800">
+            Average scan time:{" "}
+            <span className="font-semibold text-white">
+              {formatSeconds(stats ? stats.textAvgMs : 0)}
             </span>
           </p>
         </div>

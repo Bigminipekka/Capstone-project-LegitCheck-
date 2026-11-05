@@ -16,6 +16,12 @@ export interface DomainResult {
   ageDays?: number;
   reason?: string;
   hits: DomainHit[];
+  // Set when the address came from a shortened link: the short link as it
+  // appeared in the text, and where it points (address only, never opened)
+  shortLink?: string;
+  destination?: string;
+  // True when the address is a page on a free site-building service
+  shared?: boolean;
 }
  
 const MAX_TEXT = 20000;
@@ -77,6 +83,44 @@ const SKIP_DOMAINS = new Set([
   "zoom.us",
 ]);
  
+// Free site-building and hosting services. Anyone can make a page on one, so
+// the age of the service says nothing about the person who made the page.
+const SHARED_HOSTS = [
+  "wordpress.com",
+  "blogspot.com",
+  "weebly.com",
+  "wixsite.com",
+  "github.io",
+  "netlify.app",
+  "vercel.app",
+  "pages.dev",
+  "workers.dev",
+  "web.app",
+  "firebaseapp.com",
+  "herokuapp.com",
+  "onrender.com",
+  "glitch.me",
+  "webflow.io",
+  "carrd.co",
+  "godaddysites.com",
+  "myshopify.com",
+  "000webhostapp.com",
+  "repl.co",
+];
+ 
+// The service name when the host is a page on one of those services
+function sharedPlatform(host: string): string | null {
+  const h = host.toLowerCase();
+  for (const platform of SHARED_HOSTS) {
+    if (h.endsWith("." + platform)) return platform;
+  }
+  return null;
+}
+ 
+function sharedReason(platform: string): string {
+  return `This page is on ${platform}, a free site-building service. Anyone can make a page there, so the age of ${platform} says nothing about who made it.`;
+}
+ 
 // Second-level names used under country endings, like co.uk
 const SECOND_LEVEL = new Set([
   "co",
@@ -135,7 +179,11 @@ export function extractDomains(text: string): {
   const order: string[] = [];
  
   const add = (host: string, start: number, end: number) => {
-    const domain = registrable(host.replace(/\.+$/, ""));
+    const cleaned = host.replace(/\.+$/, "").toLowerCase();
+    // Keep the full address for pages on free hosting services
+    const domain = sharedPlatform(cleaned)
+      ? cleaned.replace(/^www\./, "")
+      : registrable(cleaned);
     if (!validDomain(domain) || SKIP_DOMAINS.has(domain)) return;
     if (isRestrictedDomain(domain)) return;
     if (!byDomain.has(domain)) {
@@ -200,6 +248,159 @@ export function extractDomains(text: string): {
     found: found.slice(0, MAX_DOMAINS),
     truncated: found.length > MAX_DOMAINS,
   };
+}
+ 
+// ---- Short links ----
+ 
+// Link shorteners we are willing to contact. We ask only these services where
+// a short link points, and never contact the destination itself.
+const SHORTENERS = [
+  "bit.ly",
+  "tinyurl.com",
+  "t.co",
+  "goo.gl",
+  "ow.ly",
+  "is.gd",
+  "buff.ly",
+  "rebrand.ly",
+  "cutt.ly",
+  "shorturl.at",
+  "tiny.cc",
+  "rb.gy",
+  "t.ly",
+  "v.gd",
+  "bit.do",
+];
+const SHORTENER_SET = new Set(SHORTENERS);
+const MAX_SHORT_LINKS = 3;
+const MAX_HOPS = 4;
+ 
+export interface ShortLink {
+  url: string; // what we will request, always https
+  label: string; // how it looked in the text, like bit.ly/3xYz
+  hits: DomainHit[];
+}
+ 
+// Short links that have a path, like bit.ly/3xYz. A bare "bit.ly" is not a link.
+export function extractShortLinks(text: string): ShortLink[] {
+  const source = text.slice(0, MAX_TEXT);
+  const hosts = SHORTENERS.map((h) => h.replace(/\./g, "\\.")).join("|");
+  const pattern = new RegExp(
+    `\\b(?:https?:\\/\\/)?(?:www\\.)?(${hosts})\\/([A-Za-z0-9_-]{2,40})`,
+    "gi"
+  );
+  const seen = new Set<string>();
+  const out: ShortLink[] = [];
+  for (const m of source.matchAll(pattern)) {
+    const host = m[1].toLowerCase();
+    const label = `${host}/${m[2]}`;
+    const start = m.index ?? 0;
+    const hit = { start, end: start + m[0].length };
+    const key = label.toLowerCase();
+    if (seen.has(key)) {
+      out.find((o) => o.label.toLowerCase() === key)!.hits.push(hit);
+      continue;
+    }
+    seen.add(key);
+    out.push({ url: `https://${label}`, label, hits: [hit] });
+    if (out.length >= MAX_SHORT_LINKS) break;
+  }
+  return out;
+}
+ 
+export type Expansion =
+  | { status: "ok"; host: string; destination: string }
+  | { status: "unavailable"; reason: string };
+ 
+type FetchFn = (
+  url: string,
+  init: {
+    method: string;
+    redirect: "manual";
+    signal: AbortSignal;
+    headers: Record<string, string>;
+    cache: "no-store";
+  }
+) => Promise<{
+  status: number;
+  headers: { get(name: string): string | null };
+  body?: { cancel(): unknown } | null;
+}>;
+ 
+const expansionCache = new Map<string, { at: number; result: Expansion }>();
+ 
+// Follows a short link one hop at a time. A hop is only requested when the
+// current address is a known shortener, so the destination site is never
+// contacted. Returns where the link points.
+export async function expandShortLink(
+  startUrl: string,
+  fetchImpl: FetchFn = fetch as unknown as FetchFn
+): Promise<Expansion> {
+  const cached = expansionCache.get(startUrl.toLowerCase());
+  if (cached && Date.now() - cached.at < HOUR) return cached.result;
+ 
+  const failed = (reason: string): Expansion => ({ status: "unavailable", reason });
+  let result: Expansion = failed("The short link could not be expanded.");
+ 
+  try {
+    let current = new URL(startUrl);
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      const host = current.hostname.toLowerCase().replace(/^www\./, "");
+      if (current.protocol !== "https:" && current.protocol !== "http:") {
+        result = failed("The short link points somewhere that is not a website.");
+        break;
+      }
+      if (!SHORTENER_SET.has(host)) {
+        // The destination. We stop here and do not contact it.
+        const path = current.pathname === "/" ? "" : current.pathname;
+        const destination = (current.hostname + path).slice(0, 80);
+        result = { status: "ok", host: current.hostname.toLowerCase(), destination };
+        break;
+      }
+ 
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
+      let res;
+      try {
+        res = await fetchImpl(current.toString(), {
+          method: "GET",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: { "User-Agent": "LegitCheck-link-check", Accept: "*/*" },
+          cache: "no-store",
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+      // We only want the redirect header, never the page
+      try {
+        await res.body?.cancel();
+      } catch {}
+ 
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status < 400 && location) {
+        current = new URL(location, current);
+        if (hop === MAX_HOPS - 1) {
+          result = failed("The short link redirects too many times to follow.");
+        }
+        continue;
+      }
+      result = failed(
+        res.status === 404
+          ? "The short link no longer exists or was removed."
+          : "The short link service did not give a destination."
+      );
+      break;
+    }
+  } catch {
+    result = failed("The short link could not be expanded.");
+  }
+ 
+  if (result.status === "ok") {
+    if (expansionCache.size > 500) expansionCache.clear();
+    expansionCache.set(startUrl.toLowerCase(), { at: Date.now(), result });
+  }
+  return result;
 }
  
 // ---- Looking up registration dates (RDAP) ----
@@ -356,11 +557,103 @@ export async function checkDomains(
   text: string
 ): Promise<{ domains: DomainResult[]; truncated: boolean }> {
   const { found, truncated } = extractDomains(text);
-  const domains = await Promise.all(
-    found.map(async (item) => ({
-      ...(await lookupOne(item.domain)),
-      hits: item.hits,
-    }))
+  const domains: DomainResult[] = await Promise.all(
+    found.map(async (item): Promise<DomainResult> => {
+      const platform = sharedPlatform(item.domain);
+      if (platform) {
+        return {
+          domain: item.domain,
+          status: "unavailable",
+          reason: sharedReason(platform),
+          shared: true,
+          hits: item.hits,
+        };
+      }
+      return { ...(await lookupOne(item.domain)), hits: item.hits };
+    })
   );
+ 
+  // Short links: find where each one points, then look up that address
+  const shorts = extractShortLinks(text);
+  const expanded = await Promise.all(
+    shorts.map(async (s) => ({ short: s, expansion: await expandShortLink(s.url) }))
+  );
+  for (const { short, expansion } of expanded) {
+    if (expansion.status !== "ok") {
+      domains.push({
+        domain: short.label,
+        status: "unavailable",
+        reason: expansion.reason + " The link hides where it goes, so be careful.",
+        hits: short.hits,
+        shortLink: short.label,
+      });
+      continue;
+    }
+    const cleanedHost = expansion.host.replace(/\.+$/, "").toLowerCase();
+    const platform = sharedPlatform(cleanedHost);
+    const domain = platform
+      ? cleanedHost.replace(/^www\./, "")
+      : registrable(cleanedHost);
+    const note =
+      "A short link hides its real address. This one points to " +
+      expansion.destination +
+      ".";
+    if (!validDomain(domain)) {
+      domains.push({
+        domain: short.label,
+        status: "unavailable",
+        reason: note + " The address could not be checked.",
+        hits: short.hits,
+        shortLink: short.label,
+        destination: expansion.destination,
+      });
+      continue;
+    }
+    if (platform) {
+      const existingShared = domains.find((d) => d.domain === domain);
+      if (existingShared) {
+        existingShared.hits.push(...short.hits);
+        existingShared.shortLink = existingShared.shortLink || short.label;
+        existingShared.destination =
+          existingShared.destination || expansion.destination;
+        continue;
+      }
+      domains.push({
+        domain,
+        status: "unavailable",
+        reason: sharedReason(platform),
+        shared: true,
+        hits: short.hits,
+        shortLink: short.label,
+        destination: expansion.destination,
+      });
+      continue;
+    }
+    if (SKIP_DOMAINS.has(domain) || isRestrictedDomain(domain)) {
+      domains.push({
+        domain,
+        status: "unavailable",
+        reason: note + " This is a well-known site, so its age is not checked.",
+        hits: short.hits,
+        shortLink: short.label,
+        destination: expansion.destination,
+      });
+      continue;
+    }
+    const existing = domains.find((d) => d.domain === domain);
+    if (existing) {
+      existing.hits.push(...short.hits);
+      existing.shortLink = existing.shortLink || short.label;
+      existing.destination = existing.destination || expansion.destination;
+      continue;
+    }
+    domains.push({
+      ...(await lookupOne(domain)),
+      hits: short.hits,
+      shortLink: short.label,
+      destination: expansion.destination,
+    });
+  }
+ 
   return { domains, truncated };
 }

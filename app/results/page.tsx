@@ -46,6 +46,9 @@ interface DomainResult {
   ageDays?: number;
   reason?: string;
   hits: Hit[];
+  shortLink?: string;
+  destination?: string;
+  shared?: boolean;
 }
  
 interface DomainInfo {
@@ -139,6 +142,7 @@ function formatDate(iso: string) {
 }
  
 function domainTone(d: DomainResult) {
+  if (d.shared) return "shared";
   if (d.status === "ok" && d.ageDays !== undefined) {
     if (d.ageDays < NEW_DAYS) return "new";
     if (d.ageDays < RECENT_DAYS) return "recent";
@@ -173,6 +177,12 @@ const domainStyles: {
     border: "border-yellow-800",
     bg: "bg-yellow-950/30",
     label: "No record found",
+    text: "text-yellow-300",
+  },
+  shared: {
+    border: "border-yellow-800",
+    bg: "bg-yellow-950/30",
+    label: "Free hosting page",
     text: "text-yellow-300",
   },
   unknown: {
@@ -571,6 +581,11 @@ export default function Results() {
                     {style.label}
                   </span>
                 </div>
+                {d.shortLink && d.destination && (d.status !== "unavailable" || d.shared) && (
+                  <p className="text-xs text-gray-400 mt-1 break-all">
+                    Short link {d.shortLink} points to {d.destination}
+                  </p>
+                )}
                 <p className="text-sm text-gray-300 mt-1">
                   {d.status === "ok" &&
                     d.registered !== undefined &&
