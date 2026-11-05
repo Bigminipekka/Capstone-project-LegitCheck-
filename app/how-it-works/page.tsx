@@ -17,7 +17,7 @@ export default function HowItWorks() {
             Scanner
           </Link>
           <Link href="/database" className="hover:text-blue-400 transition-colors">
-            Database
+            Rules
           </Link>
           <span className="text-blue-400 font-medium">How It Works</span>
         </nav>

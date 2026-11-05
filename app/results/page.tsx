@@ -308,8 +308,14 @@ export default function Results() {
  
   // ---- Recommended actions: fixed baseline + AI-suggested specifics ----
   const isEmail = result.contentType === "email";
+  const isText = result.contentType === "text_message";
  
-  const baselineActions = isEmail
+  const baselineActions = isText
+    ? [
+        "Do not tap links in unexpected texts. Go to the company's website or app by typing the address yourself.",
+        "If you already shared information or paid, report it at reportfraud.ftc.gov.",
+      ]
+    : isEmail
     ? [
         "Never click links or share passwords, SSNs, or card numbers from an unexpected email.",
         "If you already shared information or paid, report it at reportfraud.ftc.gov.",
@@ -319,11 +325,15 @@ export default function Results() {
         "If you already shared information or paid, report it at reportfraud.ftc.gov.",
       ];
  
-  const reportAction = isEmail
+  const reportAction = isText
+    ? "Forward the text to 7726 (SPAM), then block the number and delete the message."
+    : isEmail
     ? "Report the email as phishing to your email provider, then delete it."
     : "Report this listing on the site where you found it.";
  
-  const stopAction = isEmail
+  const stopAction = isText
+    ? "Do not reply, tap any links, or call any number in the text."
+    : isEmail
     ? "Do not reply, click any links, or open attachments."
     : "Do not apply, reply, or share personal information with this poster.";
  
@@ -421,7 +431,7 @@ export default function Results() {
  
       {result.flaggedResults.length === 0 ? (
         <p className="text-gray-400 text-sm">
-          No red flags were detected in this posting based on our current rule set.
+          No red flags were detected based on our current rule set.
         </p>
       ) : (
         <div className="space-y-3">
@@ -537,7 +547,8 @@ export default function Results() {
         </h2>
         <p className="text-xs text-gray-400 mb-4 leading-relaxed">
           Websites and email addresses in your text were looked up in public
-          domain registration records. A recent date can be innocent, since
+          domain registration records. Links are never opened. Only the
+          address is checked, not the page behind it. A recent date can be innocent, since
           many honest businesses are new, and an old date does not make a
           domain safe. This check is shown for context and does not change the
           risk rating.
@@ -797,7 +808,9 @@ export default function Results() {
  
             {overallLevel === "Low" && (
               <p className="text-sm text-gray-300 mb-4 leading-relaxed">
-                {isEmail
+                {isText
+                  ? "No major concerns were found, but still be careful with links and verify the sender independently before replying."
+                  : isEmail
                   ? "No major concerns were found, but still verify the sender independently before clicking links or replying."
                   : "No major concerns were found, but still verify the company independently before sharing personal information."}
               </p>
@@ -831,7 +844,7 @@ export default function Results() {
               }
               className="w-full mt-4 py-2 border border-blue-600 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-950 transition-colors"
             >
-              Scan Another {isEmail ? "Email" : "Job Posting"}
+              Scan Another {isText ? "Text" : isEmail ? "Email" : "Job Posting"}
             </button>
           </div>
         </div>

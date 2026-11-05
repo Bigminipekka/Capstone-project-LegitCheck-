@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { checkRules } from "@/lib/detection";
 import { checkEmailRules } from "@/lib/emailDetection";
+import { checkTextRules } from "@/lib/textDetection";
 import { rateLimit, MAX_TEXT_CHARS } from "@/lib/rateLimit";
  
 const weightValues: { [key: string]: number } = {
@@ -25,14 +26,20 @@ export async function POST(req: NextRequest) {
     );
   }
  
-  if (!text || text.trim().length < 20) {
+  const minLength = type === "text_message" ? 10 : 20;
+  if (!text || text.trim().length < minLength) {
     return NextResponse.json(
       { error: "Please paste a longer message to analyze." },
       { status: 400 }
     );
   }
  
-  const contentType = type === "email" ? "email" : "job_posting";
+  const contentType: "email" | "text_message" | "job_posting" =
+    type === "email"
+      ? "email"
+      : type === "text_message"
+      ? "text_message"
+      : "job_posting";
  
   // Get only the rules matching this content type
   const { data: rules, error } = await supabase
@@ -53,7 +60,11 @@ export async function POST(req: NextRequest) {
  
   // Run the correct detection logic based on type
   const matches =
-    contentType === "email" ? checkEmailRules(text) : checkRules(text);
+    contentType === "email"
+      ? checkEmailRules(text)
+      : contentType === "text_message"
+      ? checkTextRules(text)
+      : checkRules(text);
  
   const flaggedResults = matches
     .filter((m) => m.matched)

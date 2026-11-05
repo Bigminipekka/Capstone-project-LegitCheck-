@@ -124,7 +124,7 @@ function isRestrictedDomain(domain: string): boolean {
 }
  
 const BARE_ENDINGS =
-  "com|net|org|io|co|info|biz|us|xyz|online|site|top|club|shop|app|dev|jobs|careers";
+  "com|net|org|io|co|info|biz|us|xyz|online|site|top|club|shop|app|dev|jobs|careers|link|click|live|vip|cc|icu|cfd|sbs|cyou|help|support";
  
 export function extractDomains(text: string): {
   found: FoundDomain[];

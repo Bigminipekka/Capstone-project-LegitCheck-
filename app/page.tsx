@@ -23,8 +23,18 @@ function formatSeconds(ms: number) {
   return ms > 0 ? (ms / 1000).toFixed(1) + "s" : "—";
 }
  
-function kindName(kind: ContentKind) {
-  return kind === "email" ? "email" : "job posting";
+type Mode = "job_posting" | "email" | "text_message";
+ 
+function kindName(kind: Mode) {
+  if (kind === "email") return "email";
+  if (kind === "text_message") return "text message";
+  return "job posting";
+}
+ 
+function modeTitle(kind: Mode) {
+  if (kind === "email") return "Email";
+  if (kind === "text_message") return "Text Message";
+  return "Job Posting";
 }
  
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -79,18 +89,27 @@ You are receiving this email because you enrolled in this course. You can manage
  
 The Example Learning Team`,
   },
+  text_message: {
+    scam: `Example Post: Your package is on hold because the address is incomplete. Confirm your details and pay a $1.99 redelivery fee within 24 hours: http://examplepost-redelivery.top/track`,
+    legit: `Example Clinic: Reminder that you have an appointment tomorrow at 3:00 PM. Reply C to confirm, or call 757-555-0100 to reschedule. Reply STOP to opt out.`,
+  },
 };
  
  
 function HomeContent() {
   const searchParams = useSearchParams();
-  const initialMode =
-    searchParams.get("mode") === "email" ? "email" : "job_posting";
+  const modeParam = searchParams.get("mode");
+  const initialMode: Mode =
+    modeParam === "email"
+      ? "email"
+      : modeParam === "text_message"
+      ? "text_message"
+      : "job_posting";
  
   const [jobPosting, setJobPosting] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [mode, setMode] = useState<"job_posting" | "email">(initialMode);
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [stats, setStats] = useState(null as Stats | null);
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrStatus, setOcrStatus] = useState("");
@@ -133,7 +152,7 @@ function HomeContent() {
     return () => window.removeEventListener("keydown", onKey);
   }, [viewing]);
  
-  const changeMode = (newMode: "job_posting" | "email") => {
+  const changeMode = (newMode: Mode) => {
     setMode(newMode);
     setMismatch(null);
   };
@@ -245,7 +264,8 @@ function HomeContent() {
   const handleSubmit = async (skipTypeCheck: boolean) => {
     setErrorMsg("");
  
-    if (jobPosting.trim().length < 20) {
+    const minLength = mode === "text_message" ? 10 : 20;
+    if (jobPosting.trim().length < minLength) {
       setErrorMsg("Please paste a longer message to analyze.");
       return;
     }
@@ -300,7 +320,8 @@ function HomeContent() {
  
       // Record the scan count and timing (no text is sent). If this fails,
       // the scan itself is unaffected.
-      fetch("/api/stats", {
+      // Text messages are not part of the saved scan totals yet
+      if (mode !== "text_message") fetch("/api/stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -332,7 +353,7 @@ function HomeContent() {
         <nav className="hidden md:flex gap-6 text-sm text-gray-300">
           <span className="text-blue-400 font-medium">Scanner</span>
           <Link href="/database" className="hover:text-blue-400 transition-colors">
-            Database
+            Rules
           </Link>
           <Link href="/how-it-works" className="hover:text-blue-400 transition-colors">
             How It Works
@@ -355,8 +376,8 @@ function HomeContent() {
           Detect Job Scams Fast
         </h1>
         <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-          Paste a job posting or suspicious email, or add a screenshot of
-          one, to check if it's likely a scam. Our algorithm analyzes salary
+          Paste a job posting, suspicious email or text message, or add a
+          screenshot of one, to check if it's likely a scam. Our algorithm analyzes salary
           claims, request channels, contact details, and grammatical
           patterns.
         </p>
@@ -385,15 +406,29 @@ function HomeContent() {
           >
             Email
           </button>
+          <button
+            onClick={() => changeMode("text_message")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+              mode === "text_message"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}
+          >
+            Text Message
+          </button>
         </div>
         <p className="text-xs text-gray-500 mb-4">
-          Choose Email for messages you received, and Job Posting for
-          listings.
+          Choose Email or Text Message for messages you received, and Job
+          Posting for listings.
         </p>
  
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-semibold text-gray-300">
-            {mode === "email" ? "EMAIL CONTENT" : "JOB DESCRIPTION / POSTING TEXT"}
+            {mode === "email"
+              ? "EMAIL CONTENT"
+              : mode === "text_message"
+              ? "TEXT MESSAGE"
+              : "JOB DESCRIPTION / POSTING TEXT"}
           </span>
           <span className="text-xs text-gray-500">
             Paste text, or paste or upload a screenshot
@@ -412,6 +447,8 @@ function HomeContent() {
           placeholder={
             mode === "email"
               ? "Paste the email content here, or paste a screenshot..."
+              : mode === "text_message"
+              ? "Paste the text message here, including any link, or paste a screenshot..."
               : "Paste the job posting here, or paste a screenshot..."
           }
           className="w-full h-48 p-4 rounded-lg bg-gray-950 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
@@ -426,7 +463,8 @@ function HomeContent() {
             disabled={loading || ocrBusy}
             className="px-3 py-1 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 rounded-lg text-xs font-semibold transition-colors"
           >
-            Sample scam {mode === "email" ? "email" : "posting"}
+            Sample scam{" "}
+            {mode === "email" ? "email" : mode === "text_message" ? "text" : "posting"}
           </button>
           <button
             type="button"
@@ -434,7 +472,8 @@ function HomeContent() {
             disabled={loading || ocrBusy}
             className="px-3 py-1 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 rounded-lg text-xs font-semibold transition-colors"
           >
-            Sample legitimate {mode === "email" ? "email" : "posting"}
+            Sample legitimate{" "}
+            {mode === "email" ? "email" : mode === "text_message" ? "text" : "posting"}
           </button>
           <span className="text-xs text-gray-500">
             Made-up text for demonstration. This replaces what is in the box.
@@ -519,13 +558,21 @@ function HomeContent() {
             : ""}
         </p>
  
+        {mode === "text_message" && (
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+            Paste the whole text, including the link. Links are never opened.
+            Only the link&apos;s address is checked, so we can tell you how
+            new the website is, not what is on the page.
+          </p>
+        )}
+ 
         {/* Wrong-mode notice */}
         {mismatch && (
           <div className="mt-4 border border-yellow-800 bg-yellow-950/30 rounded-lg p-4">
             <p className="text-sm text-yellow-200 leading-relaxed">
               This looks like {mismatch === "email" ? "an" : "a"}{" "}
               <strong>{kindName(mismatch)}</strong>, but you&apos;re in{" "}
-              <strong>{mode === "email" ? "Email" : "Job Posting"}</strong>{" "}
+              <strong>{modeTitle(mode)}</strong>{" "}
               mode. Results are more accurate when the mode matches the text.
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
@@ -587,7 +634,13 @@ function HomeContent() {
                 Analyzing...
               </>
             ) : (
-              `Check This ${mode === "email" ? "Email" : "Posting"} →`
+              `Check This ${
+                mode === "email"
+                  ? "Email"
+                  : mode === "text_message"
+                  ? "Text"
+                  : "Posting"
+              } →`
             )}
           </button>
         </div>

@@ -1,7 +1,7 @@
 // Scam types shown on the results page. Each rule in Supabase carries one of
 // these ids in its scam_type column ("general" means no specific scam type).
  
-export type ContentKind = "job_posting" | "email";
+export type ContentKind = "job_posting" | "email" | "text_message";
  
 export interface ScamTypeInfo {
   id: string;
@@ -115,6 +115,63 @@ export const SCAM_TYPES: { [id: string]: ScamTypeInfo } = {
     whatToDo:
       "Do not pay or reply. Change any password mentioned, and report it at reportfraud.ftc.gov or ic3.gov.",
   },
+  // ---------- Text messages ----------
+  text_delivery_toll: {
+    id: "text_delivery_toll",
+    label: "Fake delivery or toll text",
+    appliesTo: "text_message",
+    summary:
+      "The text says a package or a toll has a problem and sends you to a link to pay or confirm details.",
+    howItWorks:
+      "The link leads to a look-alike page that collects a small fee, your card details or your login. Fake package delivery and fake unpaid toll texts were among the top text scams in the FTC's 2024 data.",
+    whatToDo:
+      "Do not tap the link. Check the delivery on the carrier's own website or app, or the toll on your toll account, by typing the address yourself.",
+  },
+  text_bank_alert: {
+    id: "text_bank_alert",
+    label: "Fake bank or fraud alert text",
+    appliesTo: "text_message",
+    summary:
+      "The text warns of suspicious activity or a locked account and tells you to click or call to fix it.",
+    howItWorks:
+      "The link or phone number reaches the scammer, who asks for your login, card number or a verification code.",
+    whatToDo:
+      "Do not click or call from the text. Open your bank's app, or call the number on the back of your card.",
+  },
+  text_wrong_number: {
+    id: "text_wrong_number",
+    label: "Wrong-number text",
+    appliesTo: "text_message",
+    summary:
+      "A text that looks like it was sent to the wrong person, hoping you will reply and start a conversation.",
+    howItWorks:
+      "The scammer builds trust over days or weeks, sometimes with a romantic tone, then steers you toward a fake investment or another request for money.",
+    whatToDo:
+      "Do not share personal details or move the chat to another app. Block the number and report it.",
+  },
+  text_job_offer: {
+    id: "text_job_offer",
+    label: "Unsolicited job or task offer text",
+    appliesTo: "text_message",
+    summary:
+      "A text offers easy online work, often paid by the task or by the day, and moves you to WhatsApp or Telegram.",
+    howItWorks:
+      "Early tasks may pay a little. Later you are asked to put in your own money to continue, and it is not returned.",
+    whatToDo:
+      "Do not reply or add the recruiter. A real employer does not text a pay offer out of the blue or ask you to invest.",
+  },
+  text_government: {
+    id: "text_government",
+    label: "Government agency impersonation text",
+    appliesTo: "text_message",
+    summary:
+      "The text says it is from the IRS, Social Security, Medicare or the DMV and asks you to act.",
+    howItWorks:
+      "The IRS and Social Security say they text only if you signed up for it. The link or number in a scam text is used to collect personal details or a payment.",
+    whatToDo:
+      "Do not click or call. Contact the agency using a phone number or website you look up yourself, and report the text at reportfraud.ftc.gov.",
+  },
+ 
   prize_scam: {
     id: "prize_scam",
     label: "Prize or giveaway scam",
@@ -166,3 +223,4 @@ export function pickRuleScamType(
   }
   return best;
 }
+ 
