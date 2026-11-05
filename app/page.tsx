@@ -588,7 +588,7 @@ function HomeContent() {
                 onClick={() => changeMode(mismatch)}
                 className="px-4 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-semibold transition-colors"
               >
-                Switch to {mismatch === "email" ? "Email" : "Job Posting"} mode
+                Switch to {modeTitle(mismatch)} mode
               </button>
               <button
                 type="button"
