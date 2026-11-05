@@ -275,7 +275,13 @@ function HomeContent() {
     // If the text clearly looks like the other type, ask before scanning
     if (!skipTypeCheck) {
       const guess = guessContentType(jobPosting);
-      if (guess && guess !== mode) {
+      // A short job offer is a common kind of scam text, so in Text Message
+      // mode only a long, posting-length text is treated as the wrong mode
+      const shortJobOffer =
+        mode === "text_message" &&
+        guess === "job_posting" &&
+        jobPosting.length < 400;
+      if (guess && guess !== mode && !shortJobOffer) {
         setMismatch(guess);
         return;
       }
