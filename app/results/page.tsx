@@ -48,6 +48,7 @@ interface DomainResult {
   hits: Hit[];
   shortLink?: string;
   destination?: string;
+  chain?: string[];
   shared?: boolean;
 }
  
@@ -569,35 +570,52 @@ export default function Results() {
             const tone = domainTone(d);
             const style = domainStyles[tone];
             return (
-              <div
-                key={d.domain}
-                className={`border rounded-lg p-4 ${style.border} ${style.bg}`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold text-white break-all">
-                    {d.domain}
-                  </p>
-                  <span className={`text-xs font-semibold ${style.text}`}>
-                    {style.label}
-                  </span>
-                </div>
+              <div key={d.domain}>
                 {d.shortLink && d.destination && (d.status !== "unavailable" || d.shared) && (
-                  <p className="text-xs text-gray-400 mt-1 break-all">
-                    Short link {d.shortLink} points to {d.destination}
-                  </p>
+                  d.chain && d.chain.length > 1 ? (
+                    <div className="text-sm text-gray-400 mb-2">
+                      <p>Followed {d.chain.length} short links to the real address:</p>
+                      <p className="mt-1 break-all">
+                        {d.chain.map((step, i) => (
+                          <span key={i}>
+                            <span className="text-gray-300">{step}</span>
+                            <span className="text-sky-400"> → </span>
+                          </span>
+                        ))}
+                        <span className="text-white">{d.destination}</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400 mb-2 break-all">
+                      Short link{" "}
+                      <span className="text-gray-300">{d.shortLink}</span>
+                      <span className="text-sky-400"> → </span>
+                      <span className="text-white">{d.destination}</span>
+                    </p>
+                  )
                 )}
-                <p className="text-sm text-gray-300 mt-1">
-                  {d.status === "ok" &&
-                    d.registered !== undefined &&
-                    d.ageDays !== undefined &&
-                    `Registered ${describeAge(d.ageDays)} (${formatDate(
-                      d.registered
-                    )}).`}
-                  {d.status === "not_found" &&
-                    "No registration record was found. The domain may not exist, or the lookup service may not cover it."}
-                  {d.status === "unavailable" &&
-                    (d.reason || "This domain could not be checked.")}
-                </p>
+                <div className={`border rounded-lg p-4 ${style.border} ${style.bg}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-white break-all">
+                      {d.domain}
+                    </p>
+                    <span className={`text-xs font-semibold ${style.text}`}>
+                      {style.label}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-300 mt-1">
+                    {d.status === "ok" &&
+                      d.registered !== undefined &&
+                      d.ageDays !== undefined &&
+                      `Registered ${describeAge(d.ageDays)} (${formatDate(
+                        d.registered
+                      )}).`}
+                    {d.status === "not_found" &&
+                      "No registration record was found. The domain may not exist, or the lookup service may not cover it."}
+                    {d.status === "unavailable" &&
+                      (d.reason || "This domain could not be checked.")}
+                  </p>
+                </div>
               </div>
             );
           })}
