@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { guessContentType, ContentKind } from "@/lib/typeCheck";
+import SiteHeader from "@/components/SiteHeader";
  
 interface Stats {
   jobCount: number;
@@ -348,31 +349,7 @@ function HomeContent() {
  
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            🛡️
-          </div>
-          <span className="font-bold text-lg">LegitCheck</span>
-        </Link>
- 
-        <nav className="hidden md:flex gap-6 text-sm text-gray-300">
-          <span className="text-blue-400 font-medium">Scanner</span>
-          <Link href="/database" className="hover:text-blue-400 transition-colors">
-            Rules
-          </Link>
-          <Link href="/how-it-works" className="hover:text-blue-400 transition-colors">
-            How It Works
-          </Link>
-          <span>About API</span>
-        </nav>
- 
-        <span className="flex items-center gap-1 text-xs text-green-400 border border-green-700 rounded-full px-3 py-1">
-          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-          SYSTEM ACTIVE
-        </span>
-      </header>
+      <SiteHeader active="scanner" />
  
       {/* Hero */}
       <div className="text-center mt-12 px-4">

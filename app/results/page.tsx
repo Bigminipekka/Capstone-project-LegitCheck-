@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SCAM_TYPES, pickRuleScamType } from "@/lib/scamTypes";
+import SiteHeader from "@/components/SiteHeader";
  
 interface Hit {
   start: number;
@@ -741,33 +742,7 @@ export default function Results() {
  
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            🛡️
-          </div>
-          <span className="font-bold text-lg">LegitCheck</span>
-        </Link>
- 
-        <nav className="hidden md:flex gap-6 text-sm text-gray-300">
-          <Link href="/" className="hover:text-blue-400 transition-colors">
-            Scanner
-          </Link>
-          <Link href="/database" className="hover:text-blue-400 transition-colors">
-            Database
-          </Link>
-          <Link href="/how-it-works" className="hover:text-blue-400 transition-colors">
-            How It Works
-          </Link>
-          <span>About API</span>
-        </nav>
- 
-        <span className="flex items-center gap-1 text-xs text-green-400 border border-green-700 rounded-full px-3 py-1">
-          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-          SYSTEM ACTIVE
-        </span>
-      </header>
+      <SiteHeader />
  
       {/* Content */}
       <div className="max-w-6xl w-full mx-auto mt-10 px-4 grid md:grid-cols-3 gap-6">
