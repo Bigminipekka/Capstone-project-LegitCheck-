@@ -1,26 +1,111 @@
 @import "tailwindcss";
-
+ 
+/* Dark is the default look. Light mode is switched on by adding the
+   "light" class to the <html> element (see components/SiteHeader.tsx).
+   Light mode works by swapping the color palette below, so the pages do
+   not need separate light styles. */
+ 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #030712;
+  --foreground: #f3f4f6;
+  color-scheme: dark;
 }
-
+ 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+ 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+ 
+/* ---- Light mode palette ---- */
+html.light {
+  color-scheme: light;
+  --background: #f9fafb;
+  --foreground: #111827;
+  --color-gray-950: oklch(98.5% 0.002 247.839);
+  --color-gray-800: oklch(92.8% 0.006 264.531);
+  --color-gray-700: oklch(87.2% 0.01 258.338);
+  --color-gray-600: oklch(55.1% 0.027 264.364);
+  --color-gray-400: oklch(44.6% 0.03 256.802);
+  --color-gray-300: oklch(37.3% 0.034 259.733);
+  --color-gray-200: oklch(27.8% 0.033 256.848);
+  --color-gray-100: oklch(21% 0.034 264.665);
+  --color-gray-50: oklch(13% 0.028 261.692);
+  --color-gray-900: #ffffff;
+  --color-red-950: oklch(93.6% 0.032 17.717);
+  --color-red-900: oklch(88.5% 0.062 18.334);
+  --color-red-800: oklch(80.8% 0.114 19.571);
+  --color-red-400: oklch(57.7% 0.245 27.325);
+  --color-red-300: oklch(50.5% 0.213 27.518);
+  --color-red-200: oklch(44.4% 0.177 26.899);
+  --color-red-100: oklch(39.6% 0.141 25.723);
+  --color-orange-950: oklch(95.4% 0.038 75.164);
+  --color-orange-900: oklch(90.1% 0.076 70.697);
+  --color-orange-800: oklch(83.7% 0.128 66.29);
+  --color-orange-400: oklch(64.6% 0.222 41.116);
+  --color-orange-300: oklch(55.3% 0.195 38.402);
+  --color-orange-200: oklch(47% 0.157 37.304);
+  --color-orange-100: oklch(40.8% 0.123 38.172);
+  --color-yellow-950: oklch(97.3% 0.071 103.193);
+  --color-yellow-900: oklch(94.5% 0.129 101.54);
+  --color-yellow-800: oklch(90.5% 0.182 98.111);
+  --color-yellow-400: oklch(68.1% 0.162 75.834);
+  --color-yellow-300: oklch(55.4% 0.135 66.442);
+  --color-yellow-200: oklch(47.6% 0.114 61.907);
+  --color-yellow-100: oklch(42.1% 0.095 57.708);
+  --color-green-950: oklch(96.2% 0.044 156.743);
+  --color-green-900: oklch(92.5% 0.084 155.995);
+  --color-green-800: oklch(87.1% 0.15 154.449);
+  --color-green-400: oklch(62.7% 0.194 149.214);
+  --color-green-300: oklch(52.7% 0.154 150.069);
+  --color-green-200: oklch(44.8% 0.119 151.328);
+  --color-green-100: oklch(39.3% 0.095 152.535);
+  --color-purple-950: oklch(94.6% 0.033 307.174);
+  --color-purple-900: oklch(90.2% 0.063 306.703);
+  --color-purple-800: oklch(82.7% 0.119 306.383);
+  --color-purple-400: oklch(55.8% 0.288 302.321);
+  --color-purple-300: oklch(49.6% 0.265 301.924);
+  --color-purple-200: oklch(43.8% 0.218 303.724);
+  --color-purple-100: oklch(38.1% 0.176 304.987);
+  --color-sky-950: oklch(95.1% 0.026 236.824);
+  --color-sky-900: oklch(90.1% 0.058 230.902);
+  --color-sky-800: oklch(82.8% 0.111 230.318);
+  --color-sky-400: oklch(58.8% 0.158 241.966);
+  --color-sky-300: oklch(50% 0.134 242.749);
+  --color-sky-200: oklch(44.3% 0.11 240.79);
+  --color-sky-100: oklch(39.1% 0.09 240.876);
+  --color-blue-950: oklch(93.2% 0.032 255.585);
+  --color-blue-900: oklch(88.2% 0.059 254.128);
+  --color-blue-800: oklch(80.9% 0.105 251.813);
+  --color-blue-400: oklch(54.6% 0.245 262.881);
+  --color-blue-300: oklch(48.8% 0.243 264.376);
+  --color-blue-200: oklch(42.4% 0.199 265.638);
+  --color-blue-100: oklch(37.9% 0.146 265.522);
+}
+ 
+/* Text that is white in dark mode becomes near-black in light mode */
+html.light .text-white,
+html.light .hover\:text-white:hover {
+  color: oklch(13% 0.028 261.692);
+}
+ 
+/* Text on solid colored buttons and badges stays white */
+html.light .bg-blue-600,
+html.light .bg-blue-700,
+html.light .bg-yellow-600,
+html.light .bg-yellow-700,
+html.light .bg-orange-600,
+html.light .bg-red-600,
+html.light .hover\:bg-blue-700:hover,
+html.light .hover\:bg-yellow-700:hover,
+html.light .hover\:bg-red-700:hover {
+  color: #ffffff;
+}
+ 

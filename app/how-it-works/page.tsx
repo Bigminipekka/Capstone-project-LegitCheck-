@@ -1,28 +1,11 @@
 import Link from "next/link";
-
+import SiteHeader from "@/components/SiteHeader";
+ 
 export default function HowItWorks() {
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-gray-800">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            🛡️
-          </div>
-          <span className="font-bold text-lg">LegitCheck</span>
-        </Link>
-
-        <nav className="hidden md:flex gap-6 text-sm text-gray-300">
-          <Link href="/" className="hover:text-blue-400 transition-colors">
-            Scanner
-          </Link>
-          <Link href="/database" className="hover:text-blue-400 transition-colors">
-            Rules
-          </Link>
-          <span className="text-blue-400 font-medium">How It Works</span>
-        </nav>
-      </header>
-
+      <SiteHeader active="how" />
+ 
       <div className="max-w-2xl w-full mx-auto mt-12 mb-16 px-4">
         <span className="text-xs text-blue-400 font-semibold tracking-wide">
           METHODOLOGY
@@ -30,7 +13,7 @@ export default function HowItWorks() {
         <h1 className="text-3xl md:text-4xl font-bold mt-2 mb-8">
           How LegitCheck Works
         </h1>
-
+ 
         <div className="space-y-8 text-gray-300 text-sm leading-relaxed">
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">
@@ -43,7 +26,7 @@ export default function HowItWorks() {
               they agree and where they differ.
             </p>
           </section>
-
+ 
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">
               Layer 1: Rule-Based Detection
@@ -61,8 +44,8 @@ export default function HowItWorks() {
               Business Bureau (BBB) Scam Tracker, and the FBI&apos;s Internet
               Crime Complaint Center (IC3), along with published phishing
               research from organizations like Microsoft and Aura. Job
-              postings and emails each have their own rule set. You can view
-              all of them on the{" "}
+              postings, emails and text messages each have their own rule
+              set. You can view all of them on the{" "}
               <Link href="/database" className="text-blue-400 hover:underline">
                 Database
               </Link>{" "}
@@ -76,7 +59,7 @@ export default function HowItWorks() {
               only.
             </p>
           </section>
-
+ 
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">
               Layer 2: AI Review
@@ -99,7 +82,7 @@ export default function HowItWorks() {
               on the Database page shows exactly how it is instructed.
             </p>
           </section>
-
+ 
                     <section>
             <h2 className="text-lg font-semibold text-white mb-2">
               How the Two Layers Are Combined
@@ -115,7 +98,7 @@ export default function HowItWorks() {
               from the rule-based engine alone.
             </p>
           </section>
-
+ 
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">
               Where Your Text Goes
@@ -131,7 +114,7 @@ export default function HowItWorks() {
               .
             </p>
           </section>
-
+ 
           <section>
             <h2 className="text-lg font-semibold text-white mb-2">
               Known Limitations
@@ -164,7 +147,7 @@ export default function HowItWorks() {
             </ul>
           </section>
         </div>
-
+ 
         <Link
           href="/"
           className="inline-block mt-10 text-blue-400 hover:text-blue-300 text-sm"
